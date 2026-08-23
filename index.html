@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GlobeTrotter — Unified Travel Planning Platform</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap"
+    rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            background: '#F8F9FB',
+            surface: '#FFFFFF',
+            primary: { DEFAULT: '#0284C7', hover: '#0369A1', light: '#E0F2FE' },
+            teal: { DEFAULT: '#0D9488', light: '#CCFBF1' },
+            indigo: { DEFAULT: '#6366F1', light: '#EEF2FF' },
+            text: { main: '#111318', muted: '#6B7280' },
+            border: '#E5E7EB',
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Plus Jakarta Sans', 'sans-serif'],
+          },
+          borderRadius: { control: '8px', card: '16px', panel: '20px' }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #F8F9FB;
+      color: #111318;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    .screen-view {
+      display: none;
+    }
+
+    .screen-view.active {
+      display: block;
+    }
+  </style>
+</head>
+
+<body class="min-h-screen flex flex-col antialiased selection:bg-primary/20">
+
+  <!-- MASTER UNIFIED CONTROL BAR (TOP NAVIGATION) -->
+  <div
+    class="bg-text-main text-white py-2 px-4 border-b border-gray-800 sticky top-0 z-50 shadow-md flex items-center justify-between text-xs">
+    <div class="flex items-center gap-2">
+      <div class="w-6 h-6 rounded bg-primary flex items-center justify-center text-white font-bold text-[10px]">GT</div>
+      <span class="font-display font-bold tracking-tight text-gray-100">GlobeTrotter Master App</span>
+      <span class="bg-primary/30 text-primary-light text-[10px] px-2 py-0.5 rounded-full font-medium">All Screens
+        Merged</span>
+    </div>
+
+    <!-- Screen Switcher Tabs -->
+    <div class="flex items-center gap-1 overflow-x-auto py-1">
+      <button onclick="switchScreen('landing')" id="tab-landing"
+        class="nav-tab px-3 py-1 rounded bg-primary text-white font-medium transition-colors">🌐 Landing</button>
+      <button onclick="switchScreen('dashboard')" id="tab-dashboard"
+        class="nav-tab px-3 py-1 rounded hover:bg-gray-800 text-gray-300 transition-colors">📊 Dashboard</button>
+      <button onclick="switchScreen('wizard')" id="tab-wizard"
+        class="nav-tab px-3 py-1 rounded hover:bg-gray-800 text-gray-300 transition-colors">🧙‍♂️ Create Trip</button>
+      <button onclick="switchScreen('itinerary')" id="tab-itinerary"
+        class="nav-tab px-3 py-1 rounded hover:bg-gray-800 text-gray-300 transition-colors">🗓️ Itinerary
+        Builder</button>
+      <button onclick="switchScreen('budget')" id="tab-budget"
+        class="nav-tab px-3 py-1 rounded hover:bg-gray-800 text-gray-300 transition-colors">💰 Budget
+        Intelligence</button>
+      <button onclick="switchScreen('share')" id="tab-share"
+        class="nav-tab px-3 py-1 rounded hover:bg-gray-800 text-gray-300 transition-colors">🔗 Public Share</button>
+      <button onclick="openAIModal()"
+        class="px-3 py-1 rounded bg-indigo text-white font-medium hover:bg-indigo/90 transition-colors flex items-center gap-1">✨
+        AI Planner Modal</button>
+    </div>
+  </div>
+
+  <!-- MAIN APP NAVBAR -->
+  <header class="bg-surface/90 backdrop-blur-md border-b border-border sticky top-9 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div onclick="switchScreen('landing')" class="flex items-center gap-2 cursor-pointer group">
+        <div class="w-9 h-9 rounded-lg bg-primary flex items-center justify-center text-white shadow-sm">
+          <i data-lucide="compass" class="w-5 h-5"></i>
+        </div>
+        <span class="font-display font-bold text-xl tracking-tight text-text-main">
+          Globe<span class="text-primary">Trotter</span>
+        </span>
+      </div>
+
+      <nav class="hidden md:flex items-center gap-8 text-sm font-medium">
+        <button onclick="switchScreen('dashboard')"
+          class="text-text-muted hover:text-primary transition-colors">Dashboard</button>
+        <button onclick="switchScreen('wizard')" class="text-text-muted hover:text-primary transition-colors">My
+          Trips</button>
+        <button onclick="switchScreen('itinerary')"
+          class="text-text-muted hover:text-primary transition-colors">Itinerary</button>
+        <button onclick="switchScreen('budget')"
+          class="text-text-muted hover:text-primary transition-colors">Budget</button>
+        <button onclick="switchScreen('share')" class="text-text-muted hover:text-primary transition-colors">Public
+          Share</button>
+      </nav>
+
+      <div class="flex items-center gap-3">
+        <button onclick="openAIModal()"
+          class="hidden sm:flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-control bg-indigo-light text-indigo border border-indigo/20 hover:bg-indigo/10 transition-colors">
+          <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+          AI Planner
+        </button>
+        <div
+          class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs cursor-pointer">
+          A
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- SCREEN 1: LANDING PAGE -->
+  <div id="screen-landing" class="screen-view active">
+    <section class="py-20 bg-gradient-to-b from-primary/5 via-background to-background text-center">
+      <div class="max-w-4xl mx-auto px-4">
+        <span
+          class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-semibold mb-6">
+          <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+          Personalized Multi-City Travel Planning
+        </span>
+        <h1 class="font-display font-extrabold text-4xl sm:text-6xl text-text-main leading-tight mb-6">
+          Plan less. <br><span class="text-primary">Travel more.</span>
+        </h1>
+        <p class="text-base sm:text-lg text-text-muted max-w-2xl mx-auto mb-8">
+          Build personalized multi-city trips, manage your budget, discover experiences, and let AI help you create the
+          perfect itinerary.
+        </p>
+        <div class="flex items-center justify-center gap-4">
+          <button onclick="switchScreen('wizard')"
+            class="px-8 py-3 rounded-control bg-primary text-white font-semibold text-sm shadow-md hover:bg-primary-hover transition-colors">
+            Start Planning →
+          </button>
+          <button onclick="openAIModal()"
+            class="px-8 py-3 rounded-control bg-indigo-light text-indigo border border-indigo/20 font-semibold text-sm hover:bg-indigo/10 transition-colors flex items-center gap-2">
+            <i data-lucide="sparkles" class="w-4 h-4"></i>
+            Try AI Planner
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Popular Routes -->
+    <section class="py-16 max-w-7xl mx-auto px-4">
+      <h2 class="font-display font-bold text-2xl mb-6">Popular Multi-City Routes</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        <div onclick="switchScreen('itinerary')"
+          class="cursor-pointer bg-surface p-4 rounded-card border border-border hover:shadow-lg transition-all space-y-3">
+          <img src="https://images.unsplash.com/photo-1477587458883-47145ed94245?auto=format&fit=crop&w=600&q=80"
+            class="h-40 w-full object-cover rounded-control">
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-teal-light text-teal">Mid-Range</span>
+          <h3 class="font-bold text-base">Rajasthan Adventure (5 Days)</h3>
+          <p class="text-xs text-text-muted">Delhi → Jaipur → Jodhpur → Udaipur</p>
+        </div>
+        <div onclick="switchScreen('itinerary')"
+          class="cursor-pointer bg-surface p-4 rounded-card border border-border hover:shadow-lg transition-all space-y-3">
+          <img src="https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=600&q=80"
+            class="h-40 w-full object-cover rounded-control">
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-primary/10 text-primary">Budget</span>
+          <h3 class="font-bold text-base">Goa Beach & Culture (3 Days)</h3>
+          <p class="text-xs text-text-muted">North Goa → South Goa → Old Goa</p>
+        </div>
+        <div onclick="switchScreen('itinerary')"
+          class="cursor-pointer bg-surface p-4 rounded-card border border-border hover:shadow-lg transition-all space-y-3">
+          <img src="https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?auto=format&fit=crop&w=600&q=80"
+            class="h-40 w-full object-cover rounded-control">
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-light text-indigo">Comfort</span>
+          <h3 class="font-bold text-base">Kerala Backwaters (6 Days)</h3>
+          <p class="text-xs text-text-muted">Kochi → Munnar → Alleppey</p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- SCREEN 2: DASHBOARD -->
+  <div id="screen-dashboard" class="screen-view">
+    <main class="max-w-7xl mx-auto px-4 py-8 space-y-8">
+      <div
+        class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-surface p-6 rounded-card border border-border shadow-card">
+        <div>
+          <h1 class="font-display font-bold text-2xl">Welcome back, Traveller 👋</h1>
+          <p class="text-xs text-text-muted mt-1">Plan your next adventure or continue organizing ongoing trips.</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <button onclick="switchScreen('wizard')"
+            class="px-4 py-2 rounded-control bg-primary text-white font-semibold text-xs">+ Plan New Trip</button>
+          <button onclick="openAIModal()"
+            class="px-4 py-2 rounded-control bg-indigo-light text-indigo border border-indigo/20 font-semibold text-xs flex items-center gap-1.5">
+            <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> AI Trip Planner
+          </button>
+        </div>
+      </div>
+
+      <!-- Metrics Row -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="p-4 rounded-card bg-surface border border-border">
+          <span class="text-xs text-text-muted">Total Trips</span>
+          <div class="text-2xl font-bold font-display mt-1">3</div>
+        </div>
+        <div class="p-4 rounded-card bg-surface border border-border">
+          <span class="text-xs text-text-muted">Upcoming Trips</span>
+          <div class="text-2xl font-bold font-display text-primary mt-1">1</div>
+        </div>
+        <div class="p-4 rounded-card bg-surface border border-border">
+          <span class="text-xs text-text-muted">Cities Visited</span>
+          <div class="text-2xl font-bold font-display text-teal mt-1">7</div>
+        </div>
+        <div class="p-4 rounded-card bg-surface border border-border">
+          <span class="text-xs text-text-muted">Budget Saved</span>
+          <div class="text-2xl font-bold font-display text-indigo mt-1">₹5,400</div>
+        </div>
+      </div>
+
+      <!-- Upcoming Featured Trip -->
+      <div class="rounded-card bg-surface border border-border overflow-hidden shadow-card">
+        <div class="h-48 relative">
+          <img src="https://images.unsplash.com/photo-1477587458883-47145ed94245?auto=format&fit=crop&w=1600&q=80"
+            class="w-full h-full object-cover">
+          <div
+            class="absolute inset-0 bg-gradient-to-t from-text-main/80 via-transparent to-transparent flex items-end p-6 text-white">
+            <div>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-teal text-white">Upcoming • 10 Oct – 15
+                Oct</span>
+              <h2 class="font-display font-extrabold text-2xl mt-1">Rajasthan Adventure</h2>
+            </div>
+          </div>
+        </div>
+        <div class="p-6 space-y-4">
+          <div class="flex items-center justify-between text-xs text-text-muted">
+            <span>📍 4 Cities: Delhi → Jaipur → Jodhpur → Udaipur</span>
+            <span>🧭 12 Activities Planned</span>
+          </div>
+          <div class="space-y-1">
+            <div class="flex justify-between text-xs">
+              <span class="font-semibold">Budget Status</span>
+              <span class="text-teal font-bold">₹17,500 spent / ₹20,000 budget</span>
+            </div>
+            <div class="w-full h-2 rounded-full bg-background overflow-hidden">
+              <div class="h-full bg-teal rounded-full" style="width: 87.5%"></div>
+            </div>
+          </div>
+          <div class="flex gap-3 pt-2">
+            <button onclick="switchScreen('itinerary')"
+              class="px-4 py-2 rounded-control bg-primary text-white text-xs font-semibold">Continue Planning</button>
+            <button onclick="switchScreen('budget')"
+              class="px-4 py-2 rounded-control border border-border text-xs font-medium">View Budget</button>
+            <button onclick="switchScreen('share')"
+              class="px-4 py-2 rounded-control border border-border text-xs font-medium">Share Link</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- SCREEN 3: CREATE TRIP WIZARD -->
+  <div id="screen-wizard" class="screen-view">
+    <main class="max-w-7xl mx-auto px-4 py-8 space-y-6">
+      <div class="flex items-center justify-between text-xs text-text-muted">
+        <div>Dashboard &gt; <span class="text-text-main font-semibold">Create New Trip</span></div>
+        <button class="px-3 py-1 rounded border border-border">Save Draft</button>
+      </div>
+
+      <!-- Stepper -->
+      <div
+        class="bg-surface p-4 rounded-card border border-border flex items-center justify-between text-xs font-semibold">
+        <span class="text-teal">✓ 1. Basic Info</span>
+        <span class="text-teal">✓ 2. Dates</span>
+        <span class="text-primary font-bold bg-primary/10 px-3 py-1 rounded-full">3. Destinations</span>
+        <span class="text-text-muted">4. Budget</span>
+        <span class="text-text-muted">5. Preferences</span>
+        <span class="text-text-muted">6. Summary</span>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="lg:col-span-2 bg-surface p-6 rounded-card border border-border space-y-6">
+          <h2 class="font-display font-bold text-xl">Step 3 of 6: Choose Destinations</h2>
+          <div class="relative">
+            <input type="text" placeholder="Search city (e.g. Jaipur, Rajasthan)"
+              class="w-full p-2.5 pl-9 rounded-control border border-border text-sm outline-none">
+            <i data-lucide="search" class="w-4 h-4 absolute left-3 top-3.5 text-text-muted"></i>
+          </div>
+
+          <div class="space-y-3">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-text-muted">Selected Stops</h3>
+            <div
+              class="p-3 bg-background rounded-card border border-border flex justify-between items-center text-xs font-semibold">
+              <span>1. Delhi, India (10 Oct – 11 Oct • 1 Day)</span>
+              <span class="text-text-muted cursor-pointer">✕</span>
+            </div>
+            <div
+              class="p-3 bg-background rounded-card border border-border flex justify-between items-center text-xs font-semibold">
+              <span>2. Jaipur, Rajasthan (11 Oct – 13 Oct • 2 Days)</span>
+              <span class="text-text-muted cursor-pointer">✕</span>
+            </div>
+            <div
+              class="p-3 bg-background rounded-card border border-border flex justify-between items-center text-xs font-semibold">
+              <span>3. Jodhpur, Rajasthan (13 Oct – 15 Oct • 2 Days)</span>
+              <span class="text-text-muted cursor-pointer">✕</span>
+            </div>
+          </div>
+
+          <div class="flex justify-between pt-4 border-t border-border">
+            <button class="px-4 py-2 border border-border rounded-control text-xs">Back</button>
+            <button onclick="switchScreen('itinerary')"
+              class="px-5 py-2 bg-primary text-white rounded-control text-xs font-semibold">Continue to Step 4: Budget
+              →</button>
+          </div>
+        </div>
+
+        <div class="p-5 bg-surface rounded-card border border-border space-y-3 text-xs">
+          <h3 class="font-bold text-sm">Trip Summary Preview</h3>
+          <img src="https://images.unsplash.com/photo-1477587458883-47145ed94245?auto=format&fit=crop&w=400&q=80"
+            class="h-28 w-full object-cover rounded-control">
+          <div class="flex justify-between"><span>Title:</span> <span class="font-bold">Rajasthan Adventure</span></div>
+          <div class="flex justify-between"><span>Duration:</span> <span class="font-bold">5 Days</span></div>
+          <div class="flex justify-between"><span>Est. Distance:</span> <span class="font-bold text-teal">620 km</span>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- SCREEN 4: ITINERARY BUILDER -->
+  <div id="screen-itinerary" class="screen-view">
+    <main class="max-w-7xl mx-auto px-4 py-8 space-y-6">
+      <div
+        class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-surface p-6 rounded-card border border-border">
+        <div>
+          <h1 class="font-display font-extrabold text-2xl">Rajasthan Adventure — Itinerary Builder</h1>
+          <p class="text-xs text-text-muted mt-1">10 Oct – 15 Oct (5 Days) • 3 Cities • Budget: ₹17,500 / ₹20,000</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="switchScreen('budget')"
+            class="px-3.5 py-1.5 rounded border border-border text-xs font-semibold">Budget Analytics</button>
+          <button onclick="openAIModal()"
+            class="px-3.5 py-1.5 rounded bg-indigo-light text-indigo border border-indigo/20 text-xs font-semibold flex items-center gap-1">
+            <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> AI Optimize
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="lg:col-span-2 space-y-6">
+          <div class="bg-surface p-5 rounded-card border border-border space-y-4">
+            <h3 class="font-display font-bold text-base border-b pb-3">DAY 1 — JAIPUR • WED, 11 OCT</h3>
+            <div class="space-y-3">
+              <div
+                class="p-3 bg-background rounded-card border border-border flex items-center justify-between text-xs">
+                <div>
+                  <span class="font-bold text-primary">09:00 AM</span> — Amber Fort Exploration
+                  <div class="text-text-muted text-[11px] mt-0.5">Sightseeing • 3 hrs • ₹500</div>
+                </div>
+                <span class="text-xs font-bold text-teal">₹500</span>
+              </div>
+              <div
+                class="p-3 bg-background rounded-card border border-border flex items-center justify-between text-xs">
+                <div>
+                  <span class="font-bold text-primary">01:00 PM</span> — Peacock Rooftop Lunch
+                  <div class="text-text-muted text-[11px] mt-0.5">Food & Dining • 1.5 hrs • ₹800</div>
+                </div>
+                <span class="text-xs font-bold text-teal">₹800</span>
+              </div>
+              <div
+                class="p-3 bg-background rounded-card border border-border flex items-center justify-between text-xs">
+                <div>
+                  <span class="font-bold text-primary">03:00 PM</span> — City Palace Jaipur
+                  <div class="text-text-muted text-[11px] mt-0.5">Culture • 2.5 hrs • ₹600</div>
+                </div>
+                <span class="text-xs font-bold text-teal">₹600</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-6">
+          <div class="p-5 bg-surface rounded-card border border-border space-y-3 text-xs">
+            <h4 class="font-bold text-sm">Budget Overview</h4>
+            <div class="flex justify-between"><span>Spent:</span> <span class="font-bold">₹17,500</span></div>
+            <div class="flex justify-between"><span>Remaining:</span> <span class="font-bold text-teal">₹2,500</span>
+            </div>
+            <div class="w-full h-2 rounded-full bg-background">
+              <div class="h-full bg-teal rounded-full" style="width: 87.5%"></div>
+            </div>
+          </div>
+          <div class="p-5 bg-indigo-light/50 border border-indigo/20 rounded-card space-y-2 text-xs">
+            <div class="font-bold text-indigo flex items-center gap-1.5"><i data-lucide="sparkles" class="w-4 h-4"></i>
+              AI Recommendation</div>
+            <p class="text-text-main">Day 1 has 4 activities. Move Bazaar Walk to Day 2 evening for a relaxed
+              schedule.</p>
+            <button onclick="openAIModal()"
+              class="w-full py-1.5 bg-indigo text-white font-semibold rounded shadow-sm">Apply AI Adjustment</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- SCREEN 5: BUDGET INTELLIGENCE -->
+  <div id="screen-budget" class="screen-view">
+    <main class="max-w-7xl mx-auto px-4 py-8 space-y-8">
+      <h1 class="font-display font-extrabold text-2xl">Budget Intelligence & Expense Analytics</h1>
+
+      <!-- Alert -->
+      <div
+        class="p-4 rounded-card bg-amber-500/10 border border-amber-500/30 flex items-center justify-between text-xs">
+        <span class="text-amber-900 font-medium">⚠️ Day 3 in Jodhpur is approaching daily limit (₹4,800
+          estimated).</span>
+        <button onclick="openAIModal()"
+          class="px-3 py-1.5 bg-indigo-light text-indigo font-semibold rounded border border-indigo/20">Optimize with
+          AI</button>
+      </div>
+
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="p-4 bg-surface rounded-card border"><span class="text-xs text-text-muted">Total Budget</span>
+          <div class="text-2xl font-bold font-display">₹20,000</div>
+        </div>
+        <div class="p-4 bg-surface rounded-card border"><span class="text-xs text-text-muted">Est. Expenses</span>
+          <div class="text-2xl font-bold font-display">₹17,500</div>
+        </div>
+        <div class="p-4 bg-surface rounded-card border"><span class="text-xs text-text-muted">Surplus Left</span>
+          <div class="text-2xl font-bold font-display text-teal">₹2,500</div>
+        </div>
+        <div class="p-4 bg-surface rounded-card border"><span class="text-xs text-text-muted">Daily Avg</span>
+          <div class="text-2xl font-bold font-display">₹3,500</div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- SCREEN 6: PUBLIC TRIP SHARE -->
+  <div id="screen-share" class="screen-view">
+    <section class="py-12 bg-text-main text-white text-center">
+      <span class="px-3 py-1 rounded bg-teal text-xs font-bold">Public Shared Itinerary</span>
+      <h1 class="font-display font-extrabold text-3xl mt-3">Rajasthan Adventure — 5-Day Tour</h1>
+      <p class="text-xs text-gray-300 mt-2">Created by Aarav Sharma • 4 Cities • ₹17,500</p>
+    </section>
+    <main class="max-w-7xl mx-auto px-4 py-8">
+      <div class="p-6 bg-surface border-2 border-primary rounded-card text-center space-y-4 max-w-xl mx-auto">
+        <h2 class="font-display font-bold text-xl text-primary">Liked this itinerary?</h2>
+        <p class="text-xs text-text-muted">Clone Aarav's exact itinerary into your own account and customize it for your
+          trip.</p>
+        <button onclick="alert('Trip copied to your account!')"
+          class="w-full py-3 bg-primary text-white font-bold rounded-control shadow-md">Copy this Trip</button>
+      </div>
+    </main>
+  </div>
+
+  <!-- AI PLANNER MODAL -->
+  <div id="ai-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-text-main/60 backdrop-blur-sm">
+    <div class="bg-surface w-full max-w-2xl rounded-panel border-t-4 border-indigo p-6 space-y-6 shadow-2xl relative">
+      <button onclick="closeAIModal()"
+        class="absolute top-4 right-4 text-text-muted hover:text-text-main font-bold">✕</button>
+      <div class="flex items-center gap-2 text-indigo font-bold">
+        <i data-lucide="sparkles" class="w-5 h-5"></i>
+        <span>AI Trip Planner (Claude Powered)</span>
+      </div>
+      <div class="space-y-4 text-xs">
+        <div>
+          <label class="block font-semibold mb-1">Destination</label>
+          <input type="text" value="Rajasthan (Multi-city)"
+            class="w-full p-2 border border-border rounded outline-none">
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div><label class="block font-semibold mb-1">Duration (Days)</label><input type="number" value="5"
+              class="w-full p-2 border rounded"></div>
+          <div><label class="block font-semibold mb-1">Max Budget (₹)</label><input type="number" value="15000"
+              class="w-full p-2 border rounded"></div>
+        </div>
+        <button onclick="closeAIModal(); switchScreen('itinerary');"
+          class="w-full py-3 bg-indigo text-white font-bold rounded shadow-md hover:bg-indigo/90">
+          ✨ Generate Full AI Itinerary
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="bg-text-main text-white py-8 mt-auto text-center text-xs border-t border-gray-800">
+    <p>© 2026 GlobeTrotter. All 7 screens merged into one single frontend application.</p>
+  </footer>
+
+  <script>
+    // Lucide Icons Initialization
+    lucide.createIcons();
+
+    // Tab & Screen Switcher Function
+    function switchScreen(screenName) {
+      // Hide all screen views
+      const screens = document.querySelectorAll('.screen-view');
+      screens.forEach(s => s.classList.remove('active'));
+
+      // Show selected screen
+      const selected = document.getElementById('screen-' + screenName);
+      if (selected) selected.classList.add('active');
+
+      // Update Nav Tabs Active State
+      const tabs = document.querySelectorAll('.nav-tab');
+      tabs.forEach(t => {
+        t.classList.remove('bg-primary', 'text-white');
+        t.classList.add('hover:bg-gray-800', 'text-gray-300');
+      });
+
+      const activeTab = document.getElementById('tab-' + screenName);
+      if (activeTab) {
+        activeTab.classList.remove('hover:bg-gray-800', 'text-gray-300');
+        activeTab.classList.add('bg-primary', 'text-white');
+      }
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function openAIModal() {
+      const modal = document.getElementById('ai-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeAIModal() {
+      const modal = document.getElementById('ai-modal');
+      modal.classList.remove('flex');
+      modal.classList.add('hidden');
+    }
+  </script>
+</body>
+
+</html>

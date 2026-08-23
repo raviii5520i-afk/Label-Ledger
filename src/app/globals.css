@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #F8F9FB;
+  --surface: #FFFFFF;
+  --text-main: #111318;
+  --text-muted: #6B7280;
+  --border: #E5E7EB;
+}
+
+body {
+  color: var(--text-main);
+  background: var(--background);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}

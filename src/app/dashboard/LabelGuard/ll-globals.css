@@ -1,0 +1,95 @@
+/* Label Ledger — Scoped Dark Theme CSS
+   Applied only inside .ll-root — doesn't bleed into Globe Trotter */
+
+.ll-root {
+  --ll-bg-base: #0F1117;
+  --ll-bg-surface: #1A1D27;
+  --ll-bg-elevated: #232635;
+  --ll-border: #2E3147;
+  --ll-text-primary: #F1F5F9;
+  --ll-text-secondary: #94A3B8;
+  --ll-text-muted: #475569;
+  --ll-indigo: #4F6EF7;
+  --ll-indigo-hover: #3B57E8;
+  --ll-green: #22C55E;
+  --ll-red: #EF4444;
+  --ll-amber: #F59E0B;
+}
+
+.ll-root * {
+  box-sizing: border-box;
+}
+
+.ll-root :focus-visible {
+  outline: 2px solid #4F6EF7;
+  outline-offset: 2px;
+}
+
+/* Scrollbar styling */
+.ll-root ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.ll-root ::-webkit-scrollbar-track {
+  background: #0F1117;
+}
+
+.ll-root ::-webkit-scrollbar-thumb {
+  background: #2E3147;
+  border-radius: 3px;
+}
+
+.ll-root ::-webkit-scrollbar-thumb:hover {
+  background: #3d4260;
+}
+
+/* Scan step animation */
+@keyframes ll-pulse-ring {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(79, 110, 247, 0.5); }
+  70% { transform: scale(1); box-shadow: 0 0 0 12px rgba(79, 110, 247, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(79, 110, 247, 0); }
+}
+
+.ll-pulse {
+  animation: ll-pulse-ring 1.8s ease-in-out infinite;
+}
+
+/* OCR scan line animation */
+@keyframes ll-scan-line {
+  0% { top: 0; }
+  100% { top: 100%; }
+}
+
+.ll-scan-line {
+  animation: ll-scan-line 2s linear infinite;
+}
+
+/* Bounding box highlight */
+.ll-bbox {
+  transition: opacity 150ms ease, border-color 150ms ease;
+}
+
+.ll-bbox:hover {
+  opacity: 1 !important;
+}
+
+/* Compliance stamp animations */
+@keyframes ll-stamp {
+  0% { transform: scale(1.4) rotate(-6deg); opacity: 0; }
+  60% { transform: scale(0.92) rotate(1deg); opacity: 1; }
+  100% { transform: scale(1) rotate(-2deg); opacity: 1; }
+}
+
+.ll-stamp-enter {
+  animation: ll-stamp 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+/* Table row hover */
+.ll-table-row {
+  transition: background-color 100ms ease;
+}
+
+.ll-table-row:hover {
+  background-color: #1A1D27;
+}

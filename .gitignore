@@ -1,0 +1,25 @@
+# Dependencies
+/node_modules
+/.pnpm
+/.yarn
+
+# Next.js build
+/.next/
+/out/
+
+# Production
+/build
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
+.env*.local
+.env
+
+# OS files
+.DS_Store
+*.pem
+*.tsbuildinfo
