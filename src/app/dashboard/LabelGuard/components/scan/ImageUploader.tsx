@@ -1,37 +1,49 @@
+// Label Ledger — Image Uploader Component (Private Supabase Storage Evidence Upload)
 'use client';
 
 import { useCallback, useRef, useState } from 'react';
-import { Upload, ImageIcon, X, AlertCircle } from 'lucide-react';
+import { Upload, ImageIcon, X, AlertCircle, Loader2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { Button } from '../ui/Button';
 
 interface ImageUploaderProps {
   onImageSelected: (file: File, previewUrl: string) => void;
+  onClear?: () => void;
   accept?: string;
   maxSizeMB?: number;
+  isUploading?: boolean;
+  uploadError?: string | null;
 }
 
 const MAX_SIZE_MB = 10;
 
 export function ImageUploader({
   onImageSelected,
+  onClear,
   accept = 'image/*',
   maxSizeMB = MAX_SIZE_MB,
+  isUploading = false,
+  uploadError = null,
 }: ImageUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const processFile = useCallback((file: File) => {
-    setError(null);
+    setLocalError(null);
 
-    if (!file.type.startsWith('image/')) {
-      setError('Please upload an image file (JPG, PNG, WEBP, HEIC).');
+    if (!file || file.size === 0) {
+      setLocalError('File is empty or invalid.');
       return;
     }
+
+    if (!file.type.startsWith('image/')) {
+      setLocalError('Please upload a valid image file (JPG, PNG, WEBP, HEIC).');
+      return;
+    }
+
     if (file.size > maxSizeMB * 1024 * 1024) {
-      setError(`File is too large. Maximum size is ${maxSizeMB} MB.`);
+      setLocalError(`File is too large. Maximum size is ${maxSizeMB} MB.`);
       return;
     }
 
@@ -55,9 +67,12 @@ export function ImageUploader({
   const handleClear = useCallback(() => {
     if (preview) URL.revokeObjectURL(preview);
     setPreview(null);
-    setError(null);
+    setLocalError(null);
     if (inputRef.current) inputRef.current.value = '';
-  }, [preview]);
+    if (onClear) onClear();
+  }, [preview, onClear]);
+
+  const displayError = uploadError || localError;
 
   return (
     <div className="max-w-2xl mx-auto space-y-4">
@@ -66,11 +81,11 @@ export function ImageUploader({
         onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
-        onClick={() => !preview && inputRef.current?.click()}
+        onClick={() => !preview && !isUploading && inputRef.current?.click()}
         className={cn(
           'relative border-2 border-dashed rounded-2xl transition-all duration-200 overflow-hidden',
           'flex flex-col items-center justify-center min-h-[320px]',
-          preview
+          preview || isUploading
             ? 'cursor-default border-[#2E3147]'
             : 'cursor-pointer',
           isDragging
@@ -80,7 +95,16 @@ export function ImageUploader({
             : 'border-[#2E3147] bg-[#1A1D27] hover:border-indigo-600/60 hover:bg-[#1e2135]',
         )}
       >
-        {preview ? (
+        {isUploading ? (
+          /* Loading State */
+          <div className="flex flex-col items-center gap-3 py-12">
+            <div className="w-12 h-12 rounded-xl bg-indigo-900/30 border border-indigo-500/40 flex items-center justify-center">
+              <Loader2 className="w-6 h-6 text-indigo-400 animate-spin" />
+            </div>
+            <p className="text-sm font-semibold text-slate-200">Uploading Evidence to Supabase Storage...</p>
+            <p className="text-xs text-slate-500">Encrypting & storing in private bucket</p>
+          </div>
+        ) : preview ? (
           /* Preview */
           <div className="relative w-full h-full flex items-center justify-center p-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -134,10 +158,10 @@ export function ImageUploader({
       </div>
 
       {/* Error */}
-      {error && (
+      {displayError && (
         <div className="flex items-center gap-2 px-3 py-2.5 bg-red-900/20 border border-red-600/30 rounded-lg">
           <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
-          <p className="text-xs text-red-300">{error}</p>
+          <p className="text-xs text-red-300">{displayError}</p>
         </div>
       )}
 
@@ -155,7 +179,7 @@ export function ImageUploader({
         {[
           { icon: <ImageIcon className="w-3.5 h-3.5" />, text: 'Ensure the label is fully visible and in focus' },
           { icon: <Upload className="w-3.5 h-3.5" />, text: 'Good lighting improves OCR extraction accuracy' },
-          { icon: <AlertCircle className="w-3.5 h-3.5" />, text: 'Original image is stored as evidence — do not crop' },
+          { icon: <AlertCircle className="w-3.5 h-3.5" />, text: 'Evidence stored in private bucket with signed URLs' },
         ].map((tip, i) => (
           <div key={i} className="flex gap-2 p-3 bg-[#1A1D27] border border-[#2E3147] rounded-xl">
             <span className="text-slate-500 shrink-0 mt-0.5">{tip.icon}</span>

@@ -1,8 +1,10 @@
+// Label Ledger — Bounding Box Overlay Component (With Private Storage Signed URL Resolution)
 'use client';
 
-import { useState, useRef, type RefObject } from 'react';
+import { useState, useRef, useEffect, type RefObject } from 'react';
 import { cn, getConfidenceConfig } from '../../lib/utils';
 import type { BBox } from '../../lib/types';
+import { createLabelEvidenceSignedUrl } from '@/lib/supabase/storage';
 
 interface BoxDef {
   id: string;
@@ -30,14 +32,35 @@ export function BoundingBoxOverlay({
   imgRef,
 }: BoundingBoxOverlayProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [resolvedSrc, setResolvedSrc] = useState<string>(imageUrl);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (!imageUrl) return;
+
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://') || imageUrl.startsWith('blob:')) {
+      setResolvedSrc(imageUrl);
+      return;
+    }
+
+    createLabelEvidenceSignedUrl(imageUrl).then((res) => {
+      if (isMounted && res.data) {
+        setResolvedSrc(res.data);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [imageUrl]);
 
   return (
     <div ref={containerRef} className="relative inline-block w-full">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         ref={imgRef}
-        src={imageUrl}
+        src={resolvedSrc}
         alt="Label with bounding box annotations"
         onLoad={onImgLoad}
         className="w-full h-auto object-contain block"

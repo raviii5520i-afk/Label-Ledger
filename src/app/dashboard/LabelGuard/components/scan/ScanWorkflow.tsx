@@ -1,3 +1,4 @@
+// Label Ledger — Scan Workflow Component (Live OCR Engine & Database Persisted)
 'use client';
 
 import { useState, useCallback } from 'react';
@@ -9,7 +10,15 @@ import { OcrReviewPanel } from './OcrReviewPanel';
 import { ComplianceChecklist } from './ComplianceChecklist';
 import { ScanSubmitPanel } from './ScanSubmitPanel';
 import type { ScanStep, OcrResult, ExtractionResult } from '../../lib/types';
-import { MOCK_OCR_RESULT, MOCK_EXTRACTION_RESULT, MOCK_RULES } from '../../lib/mock/data';
+import { MOCK_RULES } from '../../lib/mock/data';
+import { uploadLabelEvidence, createLabelEvidenceSignedUrl, deleteLabelEvidence } from '@/lib/supabase/storage';
+import {
+  saveLabelEvidenceRecord, updateInspectionStatus, saveInspectionItems,
+  saveRuleChecks, DbLabelEvidence,
+} from '@/lib/supabase/inspections';
+import { runOCR } from '@/lib/ocr/engine';
+import { extractLegalMetrologyFields } from '@/lib/ocr/extractor';
+import { evaluateRule6Compliance } from '@/lib/ocr/rules';
 
 // ── Step definitions ─────────────────────────────────────────
 
@@ -25,7 +34,13 @@ const STEP_ORDER: ScanStep[] = ['upload', 'analyzing', 'ocr_review', 'checklist'
 
 export function ScanWorkflow() {
   const [step, setStep] = useState<ScanStep>('upload');
+  const [inspectionId, setInspectionId] = useState<string>(() => crypto.randomUUID());
+  const [storagePath, setStoragePath] = useState<string | null>(null);
+  const [evidenceRow, setEvidenceRow] = useState<DbLabelEvidence | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
   const [productName, setProductName] = useState('');
   const [isImported, setIsImported] = useState(false);
   const [ocrResult, setOcrResult] = useState<OcrResult | null>(null);
@@ -34,50 +49,148 @@ export function ScanWorkflow() {
 
   const currentStepIndex = STEP_ORDER.indexOf(step);
 
-  // Mock: simulate OCR + AI extraction
-  const handleImageSelected = useCallback(async (file: File, previewUrl: string) => {
-    setImagePreviewUrl(previewUrl);
+  // Handle label image upload to private Supabase Storage bucket, run real OCR, and persist to PostgreSQL
+  const handleImageSelected = useCallback(async (file: File, localPreviewUrl: string) => {
+    setIsUploading(true);
+    setUploadError(null);
+
+    // Validate file format
+    if (!file || file.size === 0 || !file.type.startsWith('image/')) {
+      setUploadError('Please select a valid non-empty image file.');
+      setIsUploading(false);
+      return;
+    }
+
+    const currentInspectionId = inspectionId || crypto.randomUUID();
+    setInspectionId(currentInspectionId);
+
+    // 1. Upload to Supabase Storage: label-evidence bucket under path {inspection_id}/{filename}
+    const uploadRes = await uploadLabelEvidence({
+      inspectionId: currentInspectionId,
+      file,
+      fileName: file.name,
+      contentType: file.type,
+    });
+
+    if (uploadRes.error || !uploadRes.data) {
+      console.warn('[ScanWorkflow] Storage upload warning:', uploadRes.error);
+      setImagePreviewUrl(localPreviewUrl);
+    } else {
+      const path = uploadRes.data;
+      setStoragePath(path);
+
+      // 2. Persist record into public.label_evidence table (with duplicate check & parent inspection check)
+      const dbRes = await saveLabelEvidenceRecord({
+        inspectionId: currentInspectionId,
+        storagePath: path,
+        productName: productName || 'Scanned Label Inspection',
+      });
+
+      if (dbRes.error) {
+        console.error('[ScanWorkflow] Database label_evidence insert failed. Rolling back Storage object:', dbRes.error);
+        await deleteLabelEvidence(path);
+        setStoragePath(null);
+        setUploadError(`Storage upload succeeded, but database persistence failed: ${dbRes.error}`);
+        setIsUploading(false);
+        return;
+      }
+
+      if (dbRes.data) {
+        setEvidenceRow(dbRes.data);
+      }
+
+      // 3. Generate temporary signed URL for viewing private evidence object
+      const signedRes = await createLabelEvidenceSignedUrl(path);
+      if (signedRes.data) {
+        setImagePreviewUrl(signedRes.data);
+      } else {
+        setImagePreviewUrl(localPreviewUrl);
+      }
+    }
+
+    setIsUploading(false);
     setStep('analyzing');
-    // Simulate processing delay
-    await new Promise(r => setTimeout(r, 3000));
-    setOcrResult(MOCK_OCR_RESULT);
-    setExtractionResult(MOCK_EXTRACTION_RESULT);
-    setStep('ocr_review');
-  }, []);
+
+    try {
+      // 4. Run real OCR engine on uploaded label file
+      const ocrData = await runOCR(file);
+      setOcrResult(ocrData);
+
+      // 5. Run Legal Metrology Rule 6 field extraction
+      const extractionData = extractLegalMetrologyFields(ocrData);
+      setExtractionResult(extractionData);
+
+      if (extractionData.fields.product_name?.value) {
+        setProductName(extractionData.fields.product_name.value);
+      }
+
+      // 6. Evaluate Rule 6 compliance and persist to database (public.inspection_items & public.rule_checks)
+      const { items, checks } = evaluateRule6Compliance(currentInspectionId, extractionData);
+
+      // Persist inspection_items & rule_checks to Supabase PostgreSQL under active RLS
+      await saveInspectionItems(items);
+      await saveRuleChecks(checks);
+
+      setStep('ocr_review');
+    } catch (err: any) {
+      console.error('[ScanWorkflow] OCR analysis error:', err);
+      setUploadError(`OCR processing warning: ${err.message || 'Image analysis encountered an issue'}`);
+      setStep('ocr_review');
+    }
+  }, [inspectionId, productName]);
+
+  const handleClearImage = useCallback(async () => {
+    if (storagePath) {
+      await deleteLabelEvidence(storagePath);
+      setStoragePath(null);
+      setEvidenceRow(null);
+    }
+    setImagePreviewUrl(null);
+  }, [storagePath]);
 
   const handleOcrConfirmed = useCallback(() => {
     setStep('checklist');
   }, []);
 
   const handleSaveDraft = useCallback(async () => {
-    // TODO: wire to Supabase server action
-    await new Promise(r => setTimeout(r, 800));
-    alert('Draft saved! (Supabase integration pending)');
-  }, []);
+    const res = await updateInspectionStatus(inspectionId, 'draft', productName, isImported);
+    if (res.error) {
+      alert(`Draft update warning: ${res.error}`);
+    } else {
+      alert(`Draft saved! (Persisted evidence: ${storagePath || 'local'})`);
+    }
+  }, [inspectionId, productName, isImported, storagePath]);
 
   const handleSubmitForReview = useCallback(async () => {
-    // TODO: wire to Supabase server action
-    await new Promise(r => setTimeout(r, 1000));
+    const res = await updateInspectionStatus(inspectionId, 'pending_review', productName, isImported);
+    if (res.error) {
+      alert(`Submission warning: ${res.error}`);
+    }
     setStep('submit');
-  }, []);
+  }, [inspectionId, productName, isImported]);
 
   const handleReset = useCallback(() => {
     setStep('upload');
+    setInspectionId(crypto.randomUUID());
+    setStoragePath(null);
+    setEvidenceRow(null);
     setImagePreviewUrl(null);
     setProductName('');
     setIsImported(false);
     setOcrResult(null);
     setExtractionResult(null);
     setHighlightedRuleId(null);
+    setIsUploading(false);
+    setUploadError(null);
   }, []);
 
   // Build declarations from extracted fields + rules
-  const declarations = MOCK_RULES.map((rule, i) => {
+  const declarations = MOCK_RULES.map((rule) => {
     const fieldKey = ruleToFieldKey(rule.id);
     const field = fieldKey ? extractionResult?.fields[fieldKey] : undefined;
     return {
       id: `decl_${rule.id}`,
-      inspection_id: 'draft',
+      inspection_id: inspectionId,
       rule,
       found: !!field,
       extracted_value: field?.value ?? null,
@@ -103,7 +216,12 @@ export function ScanWorkflow() {
       {/* Step Content */}
       <div className="mt-2">
         {step === 'upload' && (
-          <ImageUploader onImageSelected={handleImageSelected} />
+          <ImageUploader
+            onImageSelected={handleImageSelected}
+            onClear={handleClearImage}
+            isUploading={isUploading}
+            uploadError={uploadError}
+          />
         )}
 
         {step === 'analyzing' && (
