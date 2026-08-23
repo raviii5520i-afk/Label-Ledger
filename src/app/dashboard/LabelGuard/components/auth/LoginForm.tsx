@@ -2,8 +2,10 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ShieldCheck, Mail, Lock, ArrowRight, Zap, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { ShieldCheck, Mail, Lock, ArrowRight, Zap, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { signIn } from '@/lib/supabase/auth';
+import { getCurrentProfile } from '@/lib/supabase/profiles';
 
 type AuthTab = 'password' | 'magic_link';
 
@@ -14,6 +16,7 @@ export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [magicSent, setMagicSent] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
   function validate(): boolean {
@@ -27,20 +30,45 @@ export function LoginForm() {
 
   async function handlePasswordSignIn(e: React.FormEvent) {
     e.preventDefault();
+    setAuthError(null);
     if (!validate()) return;
+
     setIsLoading(true);
-    // Mock: simulate API call
-    await new Promise(r => setTimeout(r, 1500));
-    setIsLoading(false);
-    // In real app: Supabase signInWithPassword → redirect
-    window.location.href = '/dashboard/LabelGuard/scan';
+
+    try {
+      const result = await signIn({ email, password });
+
+      if (result.error) {
+        const msg = result.error.message.toLowerCase();
+        if (msg.includes('invalid login credentials') || msg.includes('invalid credentials')) {
+          setAuthError('Invalid email or password. Please check your credentials.');
+        } else if (msg.includes('email not confirmed')) {
+          setAuthError('Please verify your email address before signing in.');
+        } else {
+          setAuthError(result.error.message || 'Authentication failed. Please check your connection and try again.');
+        }
+        setIsLoading(false);
+        return;
+      }
+
+      // Retrieve profile and role after successful authentication
+      await getCurrentProfile();
+
+      setIsLoading(false);
+      window.location.href = '/dashboard/LabelGuard/scan';
+    } catch (err: unknown) {
+      setIsLoading(false);
+      setAuthError('An unexpected network error occurred. Please try again.');
+    }
   }
 
   async function handleMagicLink(e: React.FormEvent) {
     e.preventDefault();
+    setAuthError(null);
     if (!validate()) return;
+
     setIsLoading(true);
-    await new Promise(r => setTimeout(r, 1500));
+    await new Promise(r => setTimeout(r, 1200));
     setIsLoading(false);
     setMagicSent(true);
   }
@@ -63,12 +91,20 @@ export function LoginForm() {
           Access is restricted to authorised enforcement personnel.
         </p>
 
+        {/* Auth Error Banner */}
+        {authError && (
+          <div className="mb-4 p-3 bg-red-950/40 border border-red-500/40 rounded-lg flex items-start gap-2 text-xs text-red-300">
+            <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+            <span>{authError}</span>
+          </div>
+        )}
+
         {/* Tab Switch */}
         <div className="flex p-1 bg-[#0F1117] rounded-lg mb-5 gap-1">
           {(['password', 'magic_link'] as AuthTab[]).map(t => (
             <button
               key={t}
-              onClick={() => { setTab(t); setErrors({}); setMagicSent(false); }}
+              onClick={() => { setTab(t); setErrors({}); setAuthError(null); setMagicSent(false); }}
               className={cn(
                 'flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium transition-all',
                 tab === t
@@ -115,7 +151,7 @@ export function LoginForm() {
                   id="ll-email"
                   type="email"
                   value={email}
-                  onChange={e => { setEmail(e.target.value); setErrors(p => ({ ...p, email: undefined })); }}
+                  onChange={e => { setEmail(e.target.value); setErrors(p => ({ ...p, email: undefined })); setAuthError(null); }}
                   placeholder="you@enforcement.gov.in"
                   autoComplete="email"
                   className={cn(
@@ -145,7 +181,7 @@ export function LoginForm() {
                     id="ll-password"
                     type={showPassword ? 'text' : 'password'}
                     value={password}
-                    onChange={e => { setPassword(e.target.value); setErrors(p => ({ ...p, password: undefined })); }}
+                    onChange={e => { setPassword(e.target.value); setErrors(p => ({ ...p, password: undefined })); setAuthError(null); }}
                     placeholder="••••••••"
                     autoComplete="current-password"
                     className={cn(

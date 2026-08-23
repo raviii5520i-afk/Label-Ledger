@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   ScanLine,
   LayoutDashboard,
@@ -19,6 +19,9 @@ import {
 import { cn } from '../../lib/utils';
 import { CountBadge } from '../ui/Badge';
 import { MOCK_CURRENT_USER, MOCK_INSPECTIONS } from '../../lib/mock/data';
+import { signOut } from '@/lib/supabase/auth';
+import { getCurrentProfile, UserProfile } from '@/lib/supabase/profiles';
+import { isRouteAllowed } from '@/lib/supabase/rbac';
 
 // ── Nav Items ────────────────────────────────────────────────
 
@@ -26,26 +29,42 @@ interface NavItem {
   href: string;
   label: string;
   icon: React.ReactNode;
-  adminOnly?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
   { href: '/dashboard/LabelGuard/scan', label: 'Scan Label', icon: <ScanLine className="w-4 h-4" /> },
   { href: '/dashboard/LabelGuard/repository', label: 'Repository', icon: <FolderOpen className="w-4 h-4" /> },
-  { href: '/dashboard/LabelGuard/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" />, adminOnly: true },
-  { href: '/dashboard/LabelGuard/review', label: 'Review Queue', icon: <ClipboardCheck className="w-4 h-4" />, adminOnly: true },
+  { href: '/dashboard/LabelGuard/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
+  { href: '/dashboard/LabelGuard/review', label: 'Review Queue', icon: <ClipboardCheck className="w-4 h-4" /> },
 ];
 
 // ── Sidebar ───────────────────────────────────────────────────
 
 function Sidebar({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname();
-  const user = MOCK_CURRENT_USER;
+  const router = useRouter();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const pendingCount = MOCK_INSPECTIONS.filter(i => i.status === 'pending_review').length;
 
-  const visibleItems = NAV_ITEMS.filter(item =>
-    !item.adminOnly || user.role === 'admin',
-  );
+  useEffect(() => {
+    getCurrentProfile().then(p => {
+      if (p) setProfile(p);
+    });
+  }, []);
+
+  const currentUser = profile || {
+    full_name: MOCK_CURRENT_USER.full_name,
+    role: MOCK_CURRENT_USER.role,
+  };
+
+  const activeRole = currentUser.role || 'inspector';
+  const visibleItems = NAV_ITEMS.filter(item => isRouteAllowed(activeRole, item.href));
+
+  async function handleSignOut(e: React.MouseEvent) {
+    e.preventDefault();
+    await signOut();
+    router.push('/dashboard/LabelGuard/login');
+  }
 
   return (
     <aside className="flex flex-col h-full bg-[#0F1117] border-r border-[#2E3147] w-64">
@@ -100,22 +119,22 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
         <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-[#1A1D27] cursor-pointer transition-colors group">
           <div className="w-7 h-7 rounded-full bg-indigo-700 flex items-center justify-center shrink-0">
             <span className="text-xs font-bold text-white">
-              {user.full_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+              {(currentUser.full_name || 'U').split(' ').map(n => n[0]).join('').slice(0, 2)}
             </span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-slate-200 truncate">{user.full_name}</p>
-            <p className="text-[10px] text-slate-500 capitalize">{user.role}</p>
+            <p className="text-xs font-semibold text-slate-200 truncate">{currentUser.full_name}</p>
+            <p className="text-[10px] text-slate-500 capitalize">{currentUser.role}</p>
           </div>
           <ChevronDown className="w-3.5 h-3.5 text-slate-600 group-hover:text-slate-400 shrink-0" />
         </div>
-        <Link
-          href="/dashboard/LabelGuard/login"
-          className="flex items-center gap-2.5 px-2.5 py-2 mt-1 rounded-lg text-sm text-slate-500 hover:text-red-400 hover:bg-red-900/10 transition-colors"
+        <button
+          onClick={handleSignOut}
+          className="w-full flex items-center gap-2.5 px-2.5 py-2 mt-1 rounded-lg text-sm text-slate-500 hover:text-red-400 hover:bg-red-900/10 transition-colors"
         >
           <LogOut className="w-4 h-4" />
           Sign out
-        </Link>
+        </button>
       </div>
     </aside>
   );
@@ -133,6 +152,7 @@ function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
     if (pathname.includes('/repository')) return 'Repository';
     if (pathname.includes('/report')) return 'Inspection Report';
     if (pathname.includes('/review')) return 'Review Queue';
+    if (pathname.includes('/unauthorized')) return 'Access Restricted';
     return 'Label Ledger';
   };
 

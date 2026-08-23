@@ -1,7 +1,8 @@
-// Label Ledger — Report Page
+// Label Ledger — Report Page (Protected: admin, inspector, manufacturer, viewer)
 import type { Metadata } from 'next';
 import { ReportView } from '../../components/report/ReportView';
 import { MOCK_INSPECTION_FULL, MOCK_INSPECTIONS } from '../../lib/mock/data';
+import { requireRole } from '@/lib/supabase/rbac';
 
 interface Props {
   params: { id: string };
@@ -14,8 +15,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default function ReportPage({ params }: Props) {
-  // Server-side data fetch (mock) — replace with Supabase query later
+export default async function ReportPage({ params }: Props) {
+  await requireRole(['admin', 'inspector', 'manufacturer', 'viewer']);
+
   const inspection = MOCK_INSPECTION_FULL[params.id];
 
   if (!inspection) {
