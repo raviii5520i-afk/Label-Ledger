@@ -1,11 +1,11 @@
 // Label Ledger — Supabase Middleware Session Refresh Handler
-// Refreshes expired authentication tokens and updates cookies.
+// Refreshes expired authentication tokens and updates cookies safely for Vercel Edge Runtime.
 
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 export async function updateSession(request: NextRequest) {
-  let response = NextResponse.next({
+  let supabaseResponse = NextResponse.next({
     request: {
       headers: request.headers,
     },
@@ -14,59 +14,63 @@ export async function updateSession(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  // Skip session refresh if Supabase credentials are not configured yet
+  // Skip session refresh if Supabase credentials are not configured
   if (!supabaseUrl || !supabaseAnonKey) {
-    return response;
+    return supabaseResponse;
   }
 
-  const supabase = createServerClient(
-    supabaseUrl,
-    supabaseAnonKey,
-    {
-      cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value;
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value,
-            ...options,
-          });
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          });
-          response.cookies.set({
-            name,
-            value,
-            ...options,
-          });
-        },
-        remove(name: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value: '',
-            ...options,
-          });
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          });
-          response.cookies.set({
-            name,
-            value: '',
-            ...options,
-          });
+  try {
+    const supabase = createServerClient(
+      supabaseUrl,
+      supabaseAnonKey,
+      {
+        cookies: {
+          get(name: string) {
+            return request.cookies.get(name)?.value;
+          },
+          set(name: string, value: string, options: CookieOptions) {
+            try {
+              request.cookies.set({ name, value, ...options });
+            } catch {
+              // Edge Runtime request.cookies is immutable
+            }
+            supabaseResponse = NextResponse.next({
+              request: {
+                headers: request.headers,
+              },
+            });
+            try {
+              supabaseResponse.cookies.set({ name, value, ...options });
+            } catch {
+              // Fallback for cookie setting
+            }
+          },
+          remove(name: string, options: CookieOptions) {
+            try {
+              request.cookies.set({ name, value: '', ...options });
+            } catch {
+              // Edge Runtime request.cookies is immutable
+            }
+            supabaseResponse = NextResponse.next({
+              request: {
+                headers: request.headers,
+              },
+            });
+            try {
+              supabaseResponse.cookies.set({ name, value: '', ...options });
+            } catch {
+              // Fallback for cookie removal
+            }
+          },
         },
       },
-    },
-  );
+    );
 
-  // Refreshing the auth token
-  await supabase.auth.getUser();
+    // Refresh the auth token safely
+    await supabase.auth.getUser();
+  } catch (err) {
+    console.warn('[Supabase Middleware Session Refresh Exception]', err);
+  }
 
-  return response;
+  return supabaseResponse;
 }
