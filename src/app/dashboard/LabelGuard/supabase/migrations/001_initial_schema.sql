@@ -41,6 +41,16 @@ CREATE TABLE IF NOT EXISTS public.rules (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Ensure columns exist in case the table was created manually or by an older sync
+ALTER TABLE public.rules ADD COLUMN IF NOT EXISTS code TEXT UNIQUE;
+ALTER TABLE public.rules ADD COLUMN IF NOT EXISTS clause TEXT;
+ALTER TABLE public.rules ADD COLUMN IF NOT EXISTS label TEXT;
+ALTER TABLE public.rules ADD COLUMN IF NOT EXISTS category TEXT DEFAULT 'identity' CHECK (category IN ('identity', 'quantity', 'pricing', 'dates', 'manufacturer', 'consumer', 'import', 'other'));
+ALTER TABLE public.rules ADD COLUMN IF NOT EXISTS mandatory BOOLEAN DEFAULT true;
+ALTER TABLE public.rules ADD COLUMN IF NOT EXISTS is_conditional BOOLEAN DEFAULT false;
+ALTER TABLE public.rules ADD COLUMN IF NOT EXISTS condition_note TEXT;
+ALTER TABLE public.rules ADD COLUMN IF NOT EXISTS active BOOLEAN DEFAULT true;
+
 -- 3.3 Inspections Table
 CREATE TABLE IF NOT EXISTS public.inspections (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -55,6 +65,15 @@ CREATE TABLE IF NOT EXISTS public.inspections (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   verified_at TIMESTAMPTZ
 );
+
+-- Ensure columns exist in case the table was created manually or by an older sync
+ALTER TABLE public.inspections ADD COLUMN IF NOT EXISTS inspector_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL;
+ALTER TABLE public.inspections ADD COLUMN IF NOT EXISTS verified_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL;
+ALTER TABLE public.inspections ADD COLUMN IF NOT EXISTS product_name TEXT DEFAULT '';
+ALTER TABLE public.inspections ADD COLUMN IF NOT EXISTS is_imported BOOLEAN DEFAULT false;
+ALTER TABLE public.inspections ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'pending_review', 'verified_compliant', 'verified_non_compliant'));
+ALTER TABLE public.inspections ADD COLUMN IF NOT EXISTS violation_count INTEGER DEFAULT 0;
+ALTER TABLE public.inspections ADD COLUMN IF NOT EXISTS declaration_count INTEGER DEFAULT 0;
 
 -- 3.4 Inspection Items Table (Declarations / Extracted Fields)
 CREATE TABLE IF NOT EXISTS public.inspection_items (
@@ -173,6 +192,28 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'rules' AND column_name = 'rule_number') THEN
+    ALTER TABLE public.rules ALTER COLUMN rule_number DROP NOT NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'rules' AND column_name = 'title') THEN
+    ALTER TABLE public.rules ALTER COLUMN title DROP NOT NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'rules' AND column_name = 'description') THEN
+    ALTER TABLE public.rules ALTER COLUMN description DROP NOT NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'rules' AND column_name = 'type') THEN
+    ALTER TABLE public.rules ALTER COLUMN type DROP NOT NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'rules' AND column_name = 'severity') THEN
+    ALTER TABLE public.rules ALTER COLUMN severity DROP NOT NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'rules' AND column_name = 'requirement') THEN
+    ALTER TABLE public.rules ALTER COLUMN requirement DROP NOT NULL;
+  END IF;
+END $$;
 
 -- 7. SEED DATA FOR COMPLIANCE RULES (8 RULES)
 INSERT INTO public.rules (code, clause, label, category, mandatory, is_conditional, condition_note, active)

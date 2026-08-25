@@ -127,3 +127,16 @@ export function getViolationText(count: number): string {
   if (count === 1) return '1 violation';
   return `${count} violations`;
 }
+
+// ── Route permission helper ───────────────────────────────────
+
+export function isRouteAllowed(role: string, href: string): boolean {
+  if (role === 'admin') return true;
+  if (role === 'inspector') {
+    return href.includes('/scan') || href.includes('/repository') || href.includes('/dashboard');
+  }
+  if (role === 'manufacturer' || role === 'viewer') {
+    return href.includes('/repository') || href.includes('/dashboard');
+  }
+  return true;
+}

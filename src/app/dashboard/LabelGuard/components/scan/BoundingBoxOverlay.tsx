@@ -119,8 +119,8 @@ export function BoundingBoxOverlay({
               transform: 'translate(-50%, -110%)',
             }}
           >
-            <div className="bg-[#0F1117] border border-[#2E3147] rounded-lg px-2.5 py-1.5 shadow-xl whitespace-nowrap">
-              <p className="text-[11px] font-semibold text-slate-200">{box.label}</p>
+            <div className="bg-[var(--lg-background)] border border-[var(--lg-border)] rounded-lg px-2.5 py-1.5 shadow-xl whitespace-nowrap">
+              <p className="text-[11px] font-semibold text-[var(--lg-navy)]">{box.label}</p>
               <p className={cn('text-[10px] font-mono', conf.textColor)}>
                 {Math.round(box.confidence * 100)}% confidence
               </p>

@@ -1,19 +1,43 @@
-/* Label Ledger — Scoped Dark Theme CSS
-   Applied only inside .ll-root — doesn't bleed into Globe Trotter */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Label Ledger — Scoped Light GovTech Theme CSS */
 
 .ll-root {
-  --ll-bg-base: #0F1117;
-  --ll-bg-surface: #1A1D27;
-  --ll-bg-elevated: #232635;
-  --ll-border: #2E3147;
-  --ll-text-primary: #F1F5F9;
-  --ll-text-secondary: #94A3B8;
-  --ll-text-muted: #475569;
-  --ll-indigo: #4F6EF7;
-  --ll-indigo-hover: #3B57E8;
-  --ll-green: #22C55E;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --lg-navy: #1B2A4A;
+  --lg-navy-dark: #121d33;
+  --lg-green: #3B6D11;
+  --lg-green-light: #EAF3DE;
+  --lg-green-accent: #639922;
+  --lg-blue: #185FA5;
+  --lg-orange: #D85A30;
+  --lg-background: #F7F7F3;
+  --lg-surface: #FFFFFF;
+  --lg-border: #D3D1C7;
+  --lg-text: #1A1A18;
+  --lg-muted: #5F5E5A;
+  
+  /* Retain some semantic aliases for transitions if needed */
+  --ll-indigo: var(--lg-blue);
+  --ll-green: var(--lg-green);
   --ll-red: #EF4444;
-  --ll-amber: #F59E0B;
+  --ll-amber: var(--lg-orange);
+  
+  /* Apply global background and text to root */
+  background-color: var(--lg-background);
+  color: var(--lg-text);
+}
+
+.ll-root .font-mono,
+.ll-root code,
+.ll-root kbd,
+.ll-root pre,
+.ll-root samp {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
 }
 
 .ll-root * {
@@ -21,7 +45,7 @@
 }
 
 .ll-root :focus-visible {
-  outline: 2px solid #4F6EF7;
+  outline: 2px solid var(--lg-blue);
   outline-offset: 2px;
 }
 
@@ -32,37 +56,70 @@
 }
 
 .ll-root ::-webkit-scrollbar-track {
-  background: #0F1117;
+  background: var(--lg-background);
 }
 
 .ll-root ::-webkit-scrollbar-thumb {
-  background: #2E3147;
+  background: var(--lg-border);
   border-radius: 3px;
 }
 
 .ll-root ::-webkit-scrollbar-thumb:hover {
-  background: #3d4260;
+  background: var(--lg-muted);
 }
 
-/* Scan step animation */
+/* ---------------- ANIMATIONS ---------------- */
+
+/* Staggered Word Reveal (Hero) */
+@keyframes lg-word-reveal {
+  0% { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .lg-animate-word {
+    opacity: 0;
+    animation: lg-word-reveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+}
+
+/* Vertical Scan Line (Workbench) */
+@keyframes lg-scan-vertical {
+  0% { top: 0%; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .lg-scan-line {
+    animation: lg-scan-vertical 3s linear infinite;
+  }
+}
+
+/* Sequential Reveal (Workbench Items) */
+@keyframes lg-fade-in-up {
+  0% { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .lg-fade-in-up {
+    animation: lg-fade-in-up 0.5s ease-out forwards;
+  }
+}
+
+/* Existing utility animations */
 @keyframes ll-pulse-ring {
-  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(79, 110, 247, 0.5); }
-  70% { transform: scale(1); box-shadow: 0 0 0 12px rgba(79, 110, 247, 0); }
-  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(79, 110, 247, 0); }
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(99, 153, 34, 0.5); }
+  70% { transform: scale(1); box-shadow: 0 0 0 12px rgba(99, 153, 34, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(99, 153, 34, 0); }
 }
 
-.ll-pulse {
-  animation: ll-pulse-ring 1.8s ease-in-out infinite;
-}
-
-/* OCR scan line animation */
-@keyframes ll-scan-line {
-  0% { top: 0; }
-  100% { top: 100%; }
-}
-
-.ll-scan-line {
-  animation: ll-scan-line 2s linear infinite;
+@media (prefers-reduced-motion: no-preference) {
+  .ll-pulse {
+    animation: ll-pulse-ring 1.8s ease-in-out infinite;
+  }
 }
 
 /* Bounding box highlight */
@@ -81,8 +138,10 @@
   100% { transform: scale(1) rotate(-2deg); opacity: 1; }
 }
 
-.ll-stamp-enter {
-  animation: ll-stamp 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+@media (prefers-reduced-motion: no-preference) {
+  .ll-stamp-enter {
+    animation: ll-stamp 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  }
 }
 
 /* Table row hover */
@@ -91,5 +150,44 @@
 }
 
 .ll-table-row:hover {
-  background-color: #1A1D27;
+  background-color: var(--lg-surface);
+}
+
+/* Print layout optimizations */
+@media print {
+  body, html, .ll-root, .ll-root main {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 12pt !important;
+  }
+
+  aside, header, footer, .no-print, nav, button, a:not([href]) {
+    display: none !important;
+  }
+
+  .ll-root .p-4, .ll-root .p-6, .ll-root .p-8 {
+    padding: 0 !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+  }
+
+  .ll-root .border, .ll-root .bg-[#1A1D27], .ll-root .bg-[#0F1117] {
+    border-color: #e2e8f0 !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+  }
+
+  .ll-root text, .ll-root span, .ll-root p, .ll-root h3, .ll-root h2 {
+    color: #000000 !important;
+  }
+
+  /* Force grid structures to render clearly on paper */
+  .grid {
+    display: block !important;
+  }
+  .grid > * {
+    margin-bottom: 1.5rem !important;
+    page-break-inside: avoid !important;
+  }
 }

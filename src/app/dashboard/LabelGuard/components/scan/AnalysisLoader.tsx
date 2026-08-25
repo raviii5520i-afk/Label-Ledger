@@ -6,6 +6,8 @@ import { cn } from '../../lib/utils';
 
 interface AnalysisLoaderProps {
   imageUrl: string | null;
+  /** Real pipeline stage index (0–3). When provided, overrides timer-based animation. */
+  currentStage?: number;
 }
 
 const STAGES = [
@@ -15,39 +17,44 @@ const STAGES = [
   { icon: <Cpu className="w-5 h-5" />, label: 'Matching declarations to Rule 6 clauses…', duration: 600 },
 ];
 
-export function AnalysisLoader({ imageUrl }: AnalysisLoaderProps) {
-  const [stageIndex, setStageIndex] = useState(0);
+export function AnalysisLoader({ imageUrl, currentStage }: AnalysisLoaderProps) {
+  const [internalStage, setInternalStage] = useState(0);
   const [dots, setDots] = useState('');
 
+  // Prefer real pipeline stage; fall back to timer animation
+  const stageIndex = currentStage !== undefined ? Math.min(currentStage, STAGES.length - 1) : internalStage;
+
   useEffect(() => {
-    // Animate dots
+    // Animate dots regardless
     const dotsInterval = setInterval(() => {
       setDots(d => (d.length >= 3 ? '' : d + '.'));
     }, 400);
 
-    // Progress through stages
-    let total = 0;
-    const timeouts: ReturnType<typeof setTimeout>[] = [];
-    STAGES.forEach((s, i) => {
-      total += s.duration;
-      timeouts.push(setTimeout(() => setStageIndex(i), total - s.duration));
-    });
+    // Only run timer fallback when no real stage is provided
+    let timeouts: ReturnType<typeof setTimeout>[] = [];
+    if (currentStage === undefined) {
+      let total = 0;
+      STAGES.forEach((s, i) => {
+        total += s.duration;
+        timeouts.push(setTimeout(() => setInternalStage(i), total - s.duration));
+      });
+    }
 
     return () => {
       clearInterval(dotsInterval);
       timeouts.forEach(clearTimeout);
     };
-  }, []);
+  }, [currentStage]);
 
-  const currentStage = STAGES[stageIndex];
+  const currentStageData = STAGES[stageIndex];
   const progress = ((stageIndex + 1) / STAGES.length) * 100;
 
   return (
     <div className="max-w-2xl mx-auto">
-      <div className="bg-[#1A1D27] border border-[#2E3147] rounded-2xl overflow-hidden">
+      <div className="bg-white border border-[var(--lg-border)] rounded-2xl overflow-hidden">
         {/* Image strip with scan line */}
         {imageUrl && (
-          <div className="relative h-48 bg-[#0F1117] overflow-hidden border-b border-[#2E3147]">
+          <div className="relative h-48 bg-[var(--lg-background)] overflow-hidden border-b border-[var(--lg-border)]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={imageUrl}
@@ -65,10 +72,10 @@ export function AnalysisLoader({ imageUrl }: AnalysisLoaderProps) {
               }}
             />
             {/* Corner brackets */}
-            <div className="absolute top-3 left-3 w-5 h-5 border-t-2 border-l-2 border-indigo-500/70 rounded-tl" />
-            <div className="absolute top-3 right-3 w-5 h-5 border-t-2 border-r-2 border-indigo-500/70 rounded-tr" />
-            <div className="absolute bottom-3 left-3 w-5 h-5 border-b-2 border-l-2 border-indigo-500/70 rounded-bl" />
-            <div className="absolute bottom-3 right-3 w-5 h-5 border-b-2 border-r-2 border-indigo-500/70 rounded-br" />
+            <div className="absolute top-3 left-3 w-5 h-5 border-t-2 border-l-2 border-[var(--lg-blue)]/70 rounded-tl" />
+            <div className="absolute top-3 right-3 w-5 h-5 border-t-2 border-r-2 border-[var(--lg-blue)]/70 rounded-tr" />
+            <div className="absolute bottom-3 left-3 w-5 h-5 border-b-2 border-l-2 border-[var(--lg-blue)]/70 rounded-bl" />
+            <div className="absolute bottom-3 right-3 w-5 h-5 border-b-2 border-r-2 border-[var(--lg-blue)]/70 rounded-br" />
           </div>
         )}
 
@@ -76,28 +83,28 @@ export function AnalysisLoader({ imageUrl }: AnalysisLoaderProps) {
         <div className="p-6">
           {/* Pulsing icon */}
           <div className="flex items-center gap-4 mb-6">
-            <div className="w-12 h-12 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 ll-pulse shrink-0">
-              {currentStage.icon}
+            <div className="w-12 h-12 rounded-xl bg-[var(--lg-blue)]/20 border border-[var(--lg-blue)]/30 flex items-center justify-center text-[var(--lg-blue)] ll-pulse shrink-0">
+              {currentStageData.icon}
             </div>
             <div className="flex-1">
-              <p className="text-sm font-semibold text-slate-200">
+              <p className="text-sm font-semibold text-[var(--lg-navy)]">
                 Analyzing label{dots}
               </p>
-              <p className="text-xs text-slate-500 mt-0.5 transition-all duration-300">
-                {currentStage.label}
+              <p className="text-xs text-[var(--lg-muted)] mt-0.5 transition-all duration-300">
+                {currentStageData.label}
               </p>
             </div>
           </div>
 
           {/* Progress bar */}
           <div className="space-y-2">
-            <div className="h-1 rounded-full bg-[#232635] overflow-hidden">
+            <div className="h-1 rounded-full bg-[var(--lg-background)] overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-indigo-600 to-indigo-400 rounded-full transition-all duration-700 ease-out"
                 style={{ width: `${progress}%` }}
               />
             </div>
-            <div className="flex justify-between text-[10px] text-slate-600">
+            <div className="flex justify-between text-[10px] text-[var(--lg-muted)]">
               <span>Processing</span>
               <span>{Math.round(progress)}%</span>
             </div>
@@ -110,13 +117,13 @@ export function AnalysisLoader({ imageUrl }: AnalysisLoaderProps) {
                 key={i}
                 className={cn(
                   'flex-1 h-1 rounded-full transition-colors duration-500',
-                  i <= stageIndex ? 'bg-indigo-500' : 'bg-[#232635]',
+                  i <= stageIndex ? 'bg-[var(--lg-blue)]' : 'bg-[var(--lg-background)]',
                 )}
               />
             ))}
           </div>
 
-          <p className="text-[11px] text-slate-600 text-center mt-4">
+          <p className="text-[11px] text-[var(--lg-muted)] text-center mt-4">
             Do not close or refresh this page
           </p>
         </div>

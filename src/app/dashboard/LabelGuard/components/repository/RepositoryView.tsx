@@ -14,6 +14,8 @@ import { EmptyState } from '../ui/Card';
 import { Button } from '../ui/Button';
 import type { InspectionStatus, InspectionSummary } from '../../lib/types';
 import { getMyInspections, DbInspection } from '@/lib/supabase/inspections';
+import { PageHeader } from '../ui/PageHeader';
+import { useLanguage } from '../../i18n/LanguageProvider';
 
 const ALL_STATUSES: InspectionStatus[] = [
   'draft', 'pending_review', 'verified_compliant', 'verified_non_compliant',
@@ -21,6 +23,7 @@ const ALL_STATUSES: InspectionStatus[] = [
 const PAGE_SIZE = 6;
 
 export function RepositoryView() {
+  const { t } = useLanguage();
   const router = useRouter();
   const [inspections, setInspections] = useState<InspectionSummary[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -28,6 +31,8 @@ export function RepositoryView() {
 
   const [search, setSearch] = useState('');
   const [selectedStatuses, setSelectedStatuses] = useState<InspectionStatus[]>([]);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [page, setPage] = useState(1);
   const [sortField, setSortField] = useState<'created_at' | 'product_name' | 'status'>('created_at');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
@@ -55,7 +60,7 @@ export function RepositoryView() {
         updated_at: dbInsp.updated_at,
         verified_at: null,
         inspector: {
-          id: dbInsp.created_by,
+          id: dbInsp.inspector_id,
           full_name: 'Inspector',
           email: '',
           role: 'inspector',
@@ -76,10 +81,17 @@ export function RepositoryView() {
       const q = search.toLowerCase();
       const matchSearch =
         !q ||
-        insp.product_name.toLowerCase().includes(q);
+        insp.product_name.toLowerCase().includes(q) ||
+        insp.id.toLowerCase().includes(q);
       const matchStatus =
         selectedStatuses.length === 0 || selectedStatuses.includes(insp.status);
-      return matchSearch && matchStatus;
+      const matchDateFrom =
+        !dateFrom || new Date(insp.created_at).getTime() >= new Date(dateFrom).getTime();
+      // Date comparison inclusive of the selected day
+      const matchDateTo =
+        !dateTo || new Date(insp.created_at).getTime() <= new Date(dateTo + 'T23:59:59.999Z').getTime();
+
+      return matchSearch && matchStatus && matchDateFrom && matchDateTo;
     });
 
     result = [...result].sort((a, b) => {
@@ -95,7 +107,7 @@ export function RepositoryView() {
     });
 
     return result;
-  }, [inspections, search, selectedStatuses, sortField, sortDir]);
+  }, [inspections, search, selectedStatuses, dateFrom, dateTo, sortField, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paged = useMemo(() => {
@@ -122,32 +134,35 @@ export function RepositoryView() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-bold text-slate-100">Inspection Repository</h2>
-          <p className="text-sm text-slate-500 mt-0.5">
-            Search, filter, and access all legal metrology label inspections.
-          </p>
-        </div>
-        <Link href="/dashboard/LabelGuard/scan">
-          <Button variant="primary" size="sm">
-            <ScanLine className="w-4 h-4 mr-1.5" />
-            New Label Scan
-          </Button>
-        </Link>
-      </div>
+      <PageHeader
+        title="Inspection Repository"
+        description="Search, filter, and access all legal metrology label inspections."
+        actions={
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" size="sm" onClick={fetchInspections} isLoading={loading}>
+              <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+              Refresh
+            </Button>
+            <Link href="/dashboard/LabelGuard/scan">
+              <Button variant="primary" size="sm">
+                <ScanLine className="w-4 h-4 mr-1.5" />
+                New Label Scan
+              </Button>
+            </Link>
+          </div>
+        }
+      />
 
       {/* Error Banner */}
       {error && (
-        <div className="flex items-center justify-between gap-3 p-4 bg-red-900/20 border border-red-600/30 rounded-xl text-red-300 text-xs">
+        <div className="flex items-center justify-between gap-3 p-4 bg-red-100 border border-red-300 rounded-xl text-red-700 text-xs">
           <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+            <AlertCircle className="w-4 h-4 text-red-700 shrink-0" />
             <span>{error}</span>
           </div>
           <button
             onClick={fetchInspections}
-            className="flex items-center gap-1 px-2.5 py-1 bg-red-900/40 hover:bg-red-900/60 border border-red-500/40 rounded text-xs font-semibold text-slate-200 transition-colors"
+            className="flex items-center gap-1 px-2.5 py-1 bg-red-900/40 hover:bg-red-900/60 border border-red-500/40 rounded text-xs font-semibold text-[var(--lg-navy)] transition-colors"
           >
             <RefreshCw className="w-3 h-3" />
             Retry
@@ -156,25 +171,43 @@ export function RepositoryView() {
       )}
 
       {/* Filters */}
-      <div className="bg-[#1A1D27] border border-[#2E3147] rounded-xl p-4 space-y-3">
-        {/* Search */}
-        <div className="flex gap-3 flex-col sm:flex-row">
+      <div className="bg-white border border-[var(--lg-border)] rounded-xl p-4 space-y-3">
+        {/* Search + Dates */}
+        <div className="flex gap-3 flex-col lg:flex-row">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--lg-muted)]" />
             <input
               type="text"
               value={search}
               onChange={e => { setSearch(e.target.value); setPage(1); }}
-              placeholder="Search by product name…"
-              className="w-full pl-9 pr-4 py-2 bg-[#0F1117] border border-[#2E3147] rounded-lg text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+              placeholder={t('repository.search')}
+              className="w-full pl-9 pr-4 py-2 bg-[var(--lg-background)] border border-[var(--lg-border)] rounded-lg text-sm text-[var(--lg-navy)] placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+            />
+          </div>
+          {/* Date range inputs */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={e => { setDateFrom(e.target.value); setPage(1); }}
+              className="px-3 py-1.5 bg-[var(--lg-background)] border border-[var(--lg-border)] rounded-lg text-xs text-[var(--lg-navy)] focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              aria-label="Start date"
+            />
+            <span className="text-[10px] text-[var(--lg-muted)] uppercase font-semibold">{t('common.to')}</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={e => { setDateTo(e.target.value); setPage(1); }}
+              className="px-3 py-1.5 bg-[var(--lg-background)] border border-[var(--lg-border)] rounded-lg text-xs text-[var(--lg-navy)] focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              aria-label="End date"
             />
           </div>
         </div>
 
         {/* Status pills */}
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[11px] text-slate-500 flex items-center gap-1">
-            <Filter className="w-3 h-3" /> Status:
+          <span className="text-[11px] text-[var(--lg-muted)] flex items-center gap-1">
+            <Filter className="w-3 h-3" /> {t('repository.status')}:
           </span>
           {ALL_STATUSES.map(s => {
             const cfg = STATUS_CONFIG[s];
@@ -185,7 +218,7 @@ export function RepositoryView() {
                 onClick={() => toggleStatus(s)}
                 className={cn(
                   'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all',
-                  isSelected ? `${cfg.color} ${cfg.textColor} ${cfg.borderColor}` : 'bg-[#0F1117] text-slate-500 border-[#2E3147] hover:border-slate-600',
+                  isSelected ? `${cfg.color} ${cfg.textColor} ${cfg.borderColor}` : 'bg-[var(--lg-background)] text-[var(--lg-muted)] border-[var(--lg-border)] hover:border-slate-600',
                 )}
               >
                 <span className={cn('w-1.5 h-1.5 rounded-full', isSelected ? cfg.dotColor : 'bg-slate-600')} />
@@ -193,78 +226,108 @@ export function RepositoryView() {
               </button>
             );
           })}
-          {(selectedStatuses.length > 0 || search) && (
+          {(selectedStatuses.length > 0 || search || dateFrom || dateTo) && (
             <button
-              onClick={() => { setSelectedStatuses([]); setSearch(''); setPage(1); }}
-              className="text-xs text-slate-500 hover:text-red-400 transition-colors ml-auto"
+              onClick={() => { setSelectedStatuses([]); setSearch(''); setDateFrom(''); setDateTo(''); setPage(1); }}
+              className="text-xs text-[var(--lg-muted)] hover:text-red-700 transition-colors ml-auto"
             >
-              Clear filters
+              {t('common.clearFilters')}
             </button>
           )}
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-[#1A1D27] border border-[#2E3147] rounded-xl overflow-hidden">
-        {/* Table header */}
-        <div className="grid grid-cols-[2fr_1fr_1fr_auto] gap-2 px-4 py-3 border-b border-[#2E3147] bg-[#232635]/60">
-          {[
-            { label: 'Product', field: 'product_name' as const },
-            { label: 'Status', field: 'status' as const },
-            { label: 'Date', field: 'created_at' as const },
-          ].map(({ label, field }) => (
-            <button
-              key={label}
-              onClick={() => field && toggleSort(field)}
-              className={cn(
-                'flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-left',
-                field ? 'text-slate-400 hover:text-slate-200 transition-colors' : 'text-slate-500 cursor-default',
-              )}
-            >
-              {label}
-              {field && sortField === field && (
-                <ArrowUpDown className={cn('w-3 h-3', sortDir === 'asc' ? 'rotate-180' : '')} />
-              )}
-            </button>
-          ))}
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Actions</span>
-        </div>
-
-        {/* Rows / Loading / Empty */}
+      {/* Table (Desktop/Tablet) & Cards (Mobile) */}
+      <div className="bg-white border border-[var(--lg-border)] rounded-xl overflow-hidden">
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-16 text-slate-500 gap-2">
-            <Loader2 className="w-6 h-6 animate-spin text-indigo-400" />
-            <p className="text-xs font-medium">Loading inspections from Supabase…</p>
+          <div className="flex flex-col items-center justify-center py-16 text-[var(--lg-muted)] gap-2">
+            <Loader2 className="w-6 h-6 animate-spin text-[var(--lg-blue)]" />
+            <p className="text-xs font-medium">{t('common.loading')}</p>
           </div>
         ) : paged.length === 0 ? (
           <EmptyState
             icon={<Package className="w-6 h-6" />}
-            title="No inspections found"
-            description="Start a new scan to inspect and verify product labels."
+            title={t('repository.noInspections')}
+            description={t('repository.noInspectionsDesc')}
             action={{
-              label: 'Start New Scan',
+              label: t('repository.newScan'),
               onClick: () => router.push('/dashboard/LabelGuard/scan'),
             }}
           />
         ) : (
-          <div className="divide-y divide-[#2E3147]">
-            {paged.map(insp => (
-              <InspectionRow key={insp.id} inspection={insp} />
-            ))}
-          </div>
+          <>
+            {/* Desktop Table View */}
+            <div className="hidden md:block">
+              {/* Table header */}
+              <div className="grid grid-cols-[2fr_1fr_1fr_auto] gap-2 px-4 py-3 border-b border-[var(--lg-border)] bg-[var(--lg-background)]/60">
+                {[
+                  { label: t('repository.table.product'), field: 'product_name' as const },
+                  { label: t('repository.table.status'), field: 'status' as const },
+                  { label: t('repository.table.date'), field: 'created_at' as const },
+                ].map(({ label, field }) => (
+                  <button
+                    key={label}
+                    onClick={() => field && toggleSort(field)}
+                    className={cn(
+                      'flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-left',
+                      field ? 'text-[var(--lg-muted)] hover:text-[var(--lg-navy)] transition-colors' : 'text-[var(--lg-muted)] cursor-default',
+                    )}
+                  >
+                    {label}
+                    {field && sortField === field && (
+                      <ArrowUpDown className={cn('w-3 h-3', sortDir === 'asc' ? 'rotate-180' : '')} />
+                    )}
+                  </button>
+                ))}
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--lg-muted)]">{t('repository.table.actions')}</span>
+              </div>
+
+              {/* Rows */}
+              <div className="divide-y divide-[var(--lg-border)]">
+                {paged.map(insp => (
+                  <InspectionRow key={insp.id} inspection={insp} />
+                ))}
+              </div>
+            </div>
+
+            {/* Mobile Card List View */}
+            <div className="md:hidden divide-y divide-[var(--lg-border)]">
+              {paged.map(insp => (
+                <div key={insp.id} className="p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-[var(--lg-navy)] truncate">{insp.product_name}</p>
+                      <p className="text-[10px] text-[var(--lg-muted)] font-mono mt-0.5">ID: {insp.id.slice(0, 12)}…</p>
+                    </div>
+                    <StatusPill status={insp.status} size="sm" />
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-[var(--lg-muted)]">
+                    <span>{formatDate(insp.created_at)}</span>
+                    <Link
+                      href={`/dashboard/LabelGuard/report/${insp.id}`}
+                      className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-[var(--lg-blue)] hover:text-[var(--lg-blue)] border border-[var(--lg-blue)]/30 hover:border-indigo-500/50 rounded-lg transition-colors bg-[var(--lg-background)]"
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      Report
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
 
         {/* Pagination */}
         {!loading && totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-[#2E3147]">
-            <p className="text-xs text-slate-500">
+          <div className="flex items-center justify-between px-4 py-3 border-t border-[var(--lg-border)]">
+            <p className="text-xs text-[var(--lg-muted)]">
               Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}
             </p>
             <div className="flex items-center gap-1.5">
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="w-7 h-7 flex items-center justify-center rounded border border-[#2E3147] text-slate-400 hover:text-slate-200 hover:border-slate-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="w-7 h-7 flex items-center justify-center rounded border border-[var(--lg-border)] text-[var(--lg-muted)] hover:text-[var(--lg-navy)] hover:border-slate-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
               </button>
@@ -276,7 +339,7 @@ export function RepositoryView() {
                     'w-7 h-7 text-xs rounded border transition-colors',
                     p === page
                       ? 'bg-indigo-600 border-indigo-500 text-white'
-                      : 'border-[#2E3147] text-slate-400 hover:text-slate-200 hover:border-slate-500',
+                      : 'border-[var(--lg-border)] text-[var(--lg-muted)] hover:text-[var(--lg-navy)] hover:border-slate-500',
                   )}
                 >
                   {p}
@@ -285,7 +348,7 @@ export function RepositoryView() {
               <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
-                className="w-7 h-7 flex items-center justify-center rounded border border-[#2E3147] text-slate-400 hover:text-slate-200 hover:border-slate-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="w-7 h-7 flex items-center justify-center rounded border border-[var(--lg-border)] text-[var(--lg-muted)] hover:text-[var(--lg-navy)] hover:border-slate-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronRight className="w-3.5 h-3.5" />
               </button>
@@ -303,13 +366,13 @@ function InspectionRow({ inspection: insp }: { inspection: InspectionSummary }) 
       {/* Product */}
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
-          <p className="text-sm font-medium text-slate-200 truncate">{insp.product_name}</p>
+          <p className="text-sm font-medium text-[var(--lg-navy)] truncate">{insp.product_name}</p>
           {insp.is_imported && (
-            <Globe2 className="w-3 h-3 text-slate-500 shrink-0" aria-label="Imported" />
+            <Globe2 className="w-3 h-3 text-[var(--lg-muted)] shrink-0" aria-label="Imported" />
           )}
         </div>
         {insp.violation_count > 0 && (
-          <p className="text-[11px] text-red-400 mt-0.5">
+          <p className="text-[11px] text-red-700 mt-0.5">
             {insp.violation_count} violation{insp.violation_count > 1 ? 's' : ''}
           </p>
         )}
@@ -322,14 +385,14 @@ function InspectionRow({ inspection: insp }: { inspection: InspectionSummary }) 
 
       {/* Date */}
       <div>
-        <p className="text-xs text-slate-400">{formatDate(insp.created_at)}</p>
+        <p className="text-xs text-[var(--lg-muted)]">{formatDate(insp.created_at)}</p>
       </div>
 
       {/* Actions */}
       <div className="flex items-center gap-2">
         <Link
           href={`/dashboard/LabelGuard/report/${insp.id}`}
-          className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-indigo-400 hover:text-indigo-300 border border-indigo-600/30 hover:border-indigo-500/50 rounded-lg transition-colors"
+          className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-[var(--lg-blue)] hover:text-[var(--lg-blue)] border border-[var(--lg-blue)]/30 hover:border-indigo-500/50 rounded-lg transition-colors"
         >
           <FileText className="w-3 h-3" />
           Report

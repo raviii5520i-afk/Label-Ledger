@@ -1,5 +1,5 @@
 // Label Ledger — Supabase Authentication Helpers
-// Provides signIn, signUp, signOut, getCurrentUser, and getCurrentSession.
+// Provides signIn, signUp, signOut, resetPasswordForEmail, updatePassword, getCurrentUser, and getCurrentSession.
 
 import { createClient as createBrowserClient } from './client';
 import type { User, Session } from '@supabase/supabase-js';
@@ -13,7 +13,7 @@ export interface SignUpCredentials {
   email: string;
   password?: string;
   fullName?: string;
-  role?: 'inspector' | 'admin';
+  role?: 'inspector' | 'admin' | 'manufacturer' | 'viewer';
 }
 
 export interface AuthStateResult {
@@ -29,7 +29,7 @@ export async function signIn(credentials: SignInCredentials): Promise<AuthStateR
   try {
     const supabase = createBrowserClient();
     const { data, error } = await supabase.auth.signInWithPassword({
-      email: credentials.email,
+      email: credentials.email.trim(),
       password: credentials.password || '',
     });
 
@@ -49,17 +49,20 @@ export async function signIn(credentials: SignInCredentials): Promise<AuthStateR
 
 /**
  * Signs up a new user with email, password, and optional profile metadata (fullName, role).
+ * Note: New signups are strictly defaulted to 'inspector' role unless created by an admin.
  */
 export async function signUp(credentials: SignUpCredentials): Promise<AuthStateResult> {
   try {
     const supabase = createBrowserClient();
+    const assignedRole = credentials.role === 'admin' ? 'inspector' : (credentials.role || 'inspector');
+
     const { data, error } = await supabase.auth.signUp({
-      email: credentials.email,
+      email: credentials.email.trim(),
       password: credentials.password || '',
       options: {
         data: {
-          full_name: credentials.fullName || '',
-          role: credentials.role || 'inspector',
+          full_name: credentials.fullName?.trim() || '',
+          role: assignedRole,
         },
       },
     });
@@ -75,6 +78,44 @@ export async function signUp(credentials: SignUpCredentials): Promise<AuthStateR
       session: null,
       error: err instanceof Error ? err : new Error(String(err)),
     };
+  }
+}
+
+/**
+ * Sends a password recovery email to the user with a dynamic redirect URL.
+ */
+export async function resetPasswordForEmail(
+  email: string,
+  redirectTo?: string
+): Promise<{ error: Error | null }> {
+  try {
+    const supabase = createBrowserClient();
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const callbackUrl = redirectTo || `${origin}/auth/callback?next=/dashboard/LabelGuard/reset-password`;
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: callbackUrl,
+    });
+
+    return { error: error ? new Error(error.message) : null };
+  } catch (err: unknown) {
+    return { error: err instanceof Error ? err : new Error(String(err)) };
+  }
+}
+
+/**
+ * Updates the authenticated user's password (used during password recovery reset flow).
+ */
+export async function updatePassword(newPassword: string): Promise<{ error: Error | null }> {
+  try {
+    const supabase = createBrowserClient();
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+
+    return { error: error ? new Error(error.message) : null };
+  } catch (err: unknown) {
+    return { error: err instanceof Error ? err : new Error(String(err)) };
   }
 }
 

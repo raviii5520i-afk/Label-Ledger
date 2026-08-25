@@ -1,28 +1,40 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuthStore } from "@/store/useAuthStore";
 import { Compass } from "lucide-react";
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { isAuthenticated, loading, checkAuth } = useAuthStore();
   const [isChecking, setIsChecking] = useState(true);
 
+  // Bypass GlobeTrotter AuthGuard for LabelGuard sub-application routes
+  const isLabelGuard = pathname?.startsWith('/dashboard/LabelGuard');
+
   useEffect(() => {
+    if (isLabelGuard) {
+      setIsChecking(false);
+      return;
+    }
     const verify = async () => {
       await checkAuth();
       setIsChecking(false);
     };
     verify();
-  }, [checkAuth]);
+  }, [checkAuth, isLabelGuard]);
 
   useEffect(() => {
-    if (!isChecking && !isAuthenticated) {
+    if (!isLabelGuard && !isChecking && !isAuthenticated) {
       router.push("/login");
     }
-  }, [isChecking, isAuthenticated, router]);
+  }, [isChecking, isAuthenticated, router, isLabelGuard]);
+
+  if (isLabelGuard) {
+    return <>{children}</>;
+  }
 
   if (isChecking || loading || !isAuthenticated) {
     return (

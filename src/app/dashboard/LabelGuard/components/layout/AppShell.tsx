@@ -1,29 +1,20 @@
-// Label Ledger — App Shell Layout (Sidebar + TopBar + Mobile Nav)
+// Label Ledger — Main Application Shell (Sidebar + TopBar Layout)
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  ScanLine,
-  LayoutDashboard,
-  FolderOpen,
-  ClipboardCheck,
-  LogOut,
-  Menu,
-  X,
-  ShieldCheck,
-  Bell,
-  ChevronDown,
+  ShieldCheck, ScanLine, FolderOpen, LayoutDashboard,
+  ClipboardCheck, Bell, Menu, X, LogOut, ChevronDown, User, BookOpen,
 } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { cn, isRouteAllowed } from '../../lib/utils';
 import { CountBadge } from '../ui/Badge';
-import { MOCK_CURRENT_USER, MOCK_INSPECTIONS } from '../../lib/mock/data';
 import { signOut } from '@/lib/supabase/auth';
 import { getCurrentProfile, UserProfile } from '@/lib/supabase/profiles';
-import { isRouteAllowed } from '@/lib/supabase/rbac';
-
-// ── Nav Items ────────────────────────────────────────────────
+import { getMyInspections } from '@/lib/supabase/inspections';
+import { useLanguage } from '../../i18n/LanguageProvider';
+import { LanguageSelector } from '../../i18n/LanguageSelector';
 
 interface NavItem {
   href: string;
@@ -31,20 +22,19 @@ interface NavItem {
   icon: React.ReactNode;
 }
 
+// Dashboard first — logical home page for enforcement officers
 const NAV_ITEMS: NavItem[] = [
+  { href: '/dashboard/LabelGuard/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
   { href: '/dashboard/LabelGuard/scan', label: 'Scan Label', icon: <ScanLine className="w-4 h-4" /> },
   { href: '/dashboard/LabelGuard/repository', label: 'Repository', icon: <FolderOpen className="w-4 h-4" /> },
-  { href: '/dashboard/LabelGuard/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
   { href: '/dashboard/LabelGuard/review', label: 'Review Queue', icon: <ClipboardCheck className="w-4 h-4" /> },
+  { href: '/dashboard/LabelGuard/rules', label: 'Inspection Rule', icon: <BookOpen className="w-4 h-4" /> },
 ];
 
-// ── Sidebar ───────────────────────────────────────────────────
-
-function Sidebar({ onClose }: { onClose?: () => void }) {
+function Sidebar({ onClose, pendingCount }: { onClose?: () => void; pendingCount: number }) {
   const pathname = usePathname();
   const router = useRouter();
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const pendingCount = MOCK_INSPECTIONS.filter(i => i.status === 'pending_review').length;
 
   useEffect(() => {
     getCurrentProfile().then(p => {
@@ -52,12 +42,7 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
     });
   }, []);
 
-  const currentUser = profile || {
-    full_name: MOCK_CURRENT_USER.full_name,
-    role: MOCK_CURRENT_USER.role,
-  };
-
-  const activeRole = currentUser.role || 'inspector';
+  const activeRole = profile?.role || 'inspector';
   const visibleItems = NAV_ITEMS.filter(item => isRouteAllowed(activeRole, item.href));
 
   async function handleSignOut(e: React.MouseEvent) {
@@ -66,116 +51,129 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
     router.push('/dashboard/LabelGuard/login');
   }
 
+  const { t } = useLanguage();
+
   return (
-    <aside className="flex flex-col h-full bg-[#0F1117] border-r border-[#2E3147] w-64">
+    <aside className="flex flex-col h-full bg-[var(--lg-navy)] text-white w-64 shadow-lg">
       {/* Logo */}
-      <div className="flex items-center gap-2.5 px-5 py-5 border-b border-[#2E3147]">
-        <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0">
-          <ShieldCheck className="w-4.5 h-4.5 text-white" strokeWidth={2.5} />
-        </div>
-        <div>
-          <p className="text-sm font-bold text-white leading-none">Label Ledger</p>
-          <p className="text-[10px] text-slate-500 mt-0.5">Legal Metrology</p>
-        </div>
+      <div className="flex items-center gap-2.5 px-5 py-5 border-b border-white/10">
+        <Link href="/dashboard/LabelGuard" className="flex items-center gap-2.5 hover:opacity-85 transition-opacity">
+          <div className="w-8 h-8 rounded-lg bg-[var(--lg-green)] flex items-center justify-center shrink-0">
+            <ShieldCheck className="w-4.5 h-4.5 text-white" strokeWidth={2.5} />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-white leading-none">Label Ledger</p>
+            <p className="text-[10px] text-white/60 mt-0.5">Legal Metrology</p>
+          </div>
+        </Link>
         {onClose && (
-          <button onClick={onClose} className="ml-auto text-slate-500 hover:text-slate-300 lg:hidden">
+          <button
+            onClick={onClose}
+            className="ml-auto text-white/60 hover:text-white lg:hidden"
+            aria-label="Close sidebar"
+          >
             <X className="w-4 h-4" />
           </button>
         )}
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        <p className="px-2 mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-600">
-          Navigation
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        <p className="px-2 mb-2 text-[10px] font-semibold uppercase tracking-widest text-white/50">
+          {t('navigation.navigationHeading')}
         </p>
         {visibleItems.map(item => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
-          const isPending = item.label === 'Review Queue';
+          const isPendingItem = item.label === 'Review Queue';
           return (
             <Link
               key={item.href}
               href={item.href}
               onClick={onClose}
               className={cn(
-                'flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-all duration-150 group',
+                'flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 group',
                 isActive
-                  ? 'bg-indigo-600/20 text-indigo-300 border border-indigo-600/30'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-[#1A1D27] border border-transparent',
+                  ? 'bg-white/10 text-white font-semibold'
+                  : 'text-white/70 hover:text-white hover:bg-white/5',
               )}
             >
-              <span className={cn(isActive ? 'text-indigo-400' : 'text-slate-500 group-hover:text-slate-300')}>
+              <span className={cn(isActive ? 'text-[var(--lg-green-light)]' : 'text-white/50 group-hover:text-white/80')}>
                 {item.icon}
               </span>
-              {item.label}
-              {isPending && <CountBadge count={pendingCount} />}
+              {item.label === 'Dashboard' && t('navigation.dashboard')}
+              {item.label === 'Scan Label' && t('navigation.scanLabel')}
+              {item.label === 'Repository' && t('navigation.repository')}
+              {item.label === 'Review Queue' && t('navigation.reviewQueue')}
+              {item.label === 'Inspection Rule' && 'Inspection Rule'}
+              {isPendingItem && <CountBadge count={pendingCount} />}
             </Link>
           );
         })}
       </nav>
 
       {/* User profile */}
-      <div className="px-3 py-4 border-t border-[#2E3147]">
-        <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-[#1A1D27] cursor-pointer transition-colors group">
-          <div className="w-7 h-7 rounded-full bg-indigo-700 flex items-center justify-center shrink-0">
-            <span className="text-xs font-bold text-white">
-              {(currentUser.full_name || 'U').split(' ').map(n => n[0]).join('').slice(0, 2)}
-            </span>
+      <div className="p-4 border-t border-white/10">
+        <div className="flex items-center gap-3 px-2 py-2 rounded-lg bg-white/5 border border-white/10 mb-3">
+          <div className="w-8 h-8 rounded-full bg-[var(--lg-blue)] flex items-center justify-center shrink-0">
+            <User className="w-4 h-4 text-white" />
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-slate-200 truncate">{currentUser.full_name}</p>
-            <p className="text-[10px] text-slate-500 capitalize">{currentUser.role}</p>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-white truncate">
+              {profile ? profile.full_name : 'Loading...'}
+            </p>
+            <p className="text-[10px] text-[var(--lg-green-light)] uppercase tracking-wider font-semibold">
+              {activeRole}
+            </p>
           </div>
-          <ChevronDown className="w-3.5 h-3.5 text-slate-600 group-hover:text-slate-400 shrink-0" />
         </div>
+        
         <button
           onClick={handleSignOut}
-          className="w-full flex items-center gap-2.5 px-2.5 py-2 mt-1 rounded-lg text-sm text-slate-500 hover:text-red-400 hover:bg-red-900/10 transition-colors"
+          className="w-full mt-3 flex items-center justify-center gap-2 py-2 text-sm font-medium text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
         >
           <LogOut className="w-4 h-4" />
-          Sign out
+          {t('navigation.signOut')}
         </button>
       </div>
     </aside>
   );
 }
 
-// ── TopBar ────────────────────────────────────────────────────
-
-function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
+function TopBar({ onMenuClick, pendingCount }: { onMenuClick: () => void; pendingCount: number }) {
   const pathname = usePathname();
-  const pendingCount = MOCK_INSPECTIONS.filter(i => i.status === 'pending_review').length;
+  const { t } = useLanguage();
 
   const getPageTitle = () => {
-    if (pathname.includes('/scan')) return 'Scan Label';
-    if (pathname.includes('/dashboard')) return 'Dashboard';
-    if (pathname.includes('/repository')) return 'Repository';
-    if (pathname.includes('/report')) return 'Inspection Report';
-    if (pathname.includes('/review')) return 'Review Queue';
-    if (pathname.includes('/unauthorized')) return 'Access Restricted';
+    if (pathname.includes('/scan')) return t('navigation.scanLabel');
+    if (pathname.includes('/dashboard')) return t('navigation.dashboard');
+    if (pathname.includes('/repository')) return t('navigation.repository');
+    if (pathname.includes('/report')) return t('navigation.inspectionReport');
+    if (pathname.includes('/review')) return t('navigation.reviewQueue');
+    if (pathname.includes('/unauthorized')) return t('navigation.accessRestricted');
     return 'Label Ledger';
   };
 
   return (
-    <header className="h-14 flex items-center px-4 gap-3 border-b border-[#2E3147] bg-[#0F1117]/80 backdrop-blur-sm sticky top-0 z-20">
+    <header className="h-14 flex items-center px-4 gap-3 border-b border-[var(--lg-border)] bg-[var(--lg-background)]/80 backdrop-blur-sm sticky top-0 z-20">
       <button
         onClick={onMenuClick}
-        className="lg:hidden p-1.5 text-slate-400 hover:text-slate-200 hover:bg-[#232635] rounded-lg transition-colors"
+        className="lg:hidden p-1.5 text-[var(--lg-muted)] hover:text-[var(--lg-navy)] hover:bg-black/5 rounded-lg transition-colors"
         aria-label="Open menu"
       >
         <Menu className="w-5 h-5" />
       </button>
 
-      <h1 className="text-sm font-semibold text-slate-200">{getPageTitle()}</h1>
+      <p className="text-sm font-semibold text-[var(--lg-text)]">{getPageTitle()}</p>
 
       <div className="ml-auto flex items-center gap-2">
+        <LanguageSelector />
         {pendingCount > 0 && (
           <Link
             href="/dashboard/LabelGuard/review"
-            className="relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-amber-300 bg-amber-900/20 border border-amber-600/30 hover:bg-amber-900/30 transition-colors"
+            className="relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold text-white bg-[var(--lg-orange)] hover:opacity-90 transition-colors"
           >
             <Bell className="w-3.5 h-3.5" />
-            <span>{pendingCount} pending</span>
+            <span>{pendingCount}</span>
           </Link>
         )}
       </div>
@@ -183,22 +181,52 @@ function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
   );
 }
 
-// ── AppShell (main export) ───────────────────────────────────
-
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-
-  // Close mobile nav on route change
+  const [pendingCount, setPendingCount] = useState(0);
   const pathname = usePathname();
+
   useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
 
+  // Fetch live pending inspection count from Supabase
+  const fetchPendingCount = useCallback(async () => {
+    const res = await getMyInspections();
+    if (res.data) {
+      const count = res.data.filter(i => i.status === 'pending_review').length;
+      setPendingCount(count);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPendingCount();
+  }, [fetchPendingCount]);
+
+  const isLandingPage = pathname === '/dashboard/LabelGuard' || pathname === '/dashboard/LabelGuard/';
+  const isAuthPage = pathname.endsWith('/login') || pathname.endsWith('/unauthorized');
+
+  if (isLandingPage) {
+    return (
+      <main className="min-h-screen bg-[var(--lg-background)]">
+        {children}
+      </main>
+    );
+  }
+
+  if (isAuthPage) {
+    return (
+      <main className="min-h-screen bg-[var(--lg-background)] flex items-center justify-center p-4">
+        {children}
+      </main>
+    );
+  }
+
   return (
-    <div className="flex h-screen bg-[#0F1117] overflow-hidden">
+    <div className="flex h-screen bg-[var(--lg-background)] overflow-hidden">
       {/* Desktop Sidebar */}
       <div className="hidden lg:flex lg:shrink-0">
-        <Sidebar />
+        <Sidebar pendingCount={pendingCount} />
       </div>
 
       {/* Mobile Sidebar Overlay */}
@@ -209,14 +237,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             onClick={() => setMobileOpen(false)}
           />
           <div className="relative z-10 flex">
-            <Sidebar onClose={() => setMobileOpen(false)} />
+            <Sidebar onClose={() => setMobileOpen(false)} pendingCount={pendingCount} />
           </div>
         </div>
       )}
 
       {/* Main Content */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <TopBar onMenuClick={() => setMobileOpen(true)} />
+        <TopBar onMenuClick={() => setMobileOpen(true)} pendingCount={pendingCount} />
         <main className="flex-1 overflow-y-auto">
           <div className="p-4 md:p-6 lg:p-8 max-w-[1400px] mx-auto">
             {children}

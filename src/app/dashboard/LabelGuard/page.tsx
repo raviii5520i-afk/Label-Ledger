@@ -1,19 +1,15 @@
-// Label Ledger — Root Redirect Handler
-import { redirect } from 'next/navigation';
+// Label Ledger — Root Landing Page (Server Component)
 import { getCurrentUser } from '@/lib/supabase/auth';
-import { getCurrentUserRole } from '@/lib/supabase/profiles';
+import { LandingPageView } from './components/landing/LandingPageView';
+
+export const metadata = {
+  title: 'LabelGuard — AI-Powered Legal Metrology Compliance',
+  description: 'Scan packaged commodity labels, extract mandatory declarations, evaluate Legal Metrology compliance, and manage secure inspection workflows with LabelGuard.',
+};
 
 export default async function LabelGuardRootPage() {
   const user = await getCurrentUser();
-  if (!user) {
-    redirect('/dashboard/LabelGuard/login');
-  }
+  const isAuthenticated = !!user;
 
-  const role = (await getCurrentUserRole()) || 'inspector';
-
-  if (role === 'manufacturer' || role === 'viewer') {
-    redirect('/dashboard/LabelGuard/repository');
-  }
-
-  redirect('/dashboard/LabelGuard/scan');
+  return <LandingPageView isAuthenticated={isAuthenticated} />;
 }

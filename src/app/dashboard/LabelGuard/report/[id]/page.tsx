@@ -8,13 +8,19 @@ interface Props {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const id = params?.id || '';
   return {
-    title: `Report — ${params.id.slice(0, 8)}…`,
+    title: `Report — ${id.slice(0, 8)}…`,
   };
 }
 
 export default async function ReportPage({ params }: Props) {
   await requireRole(['admin', 'inspector', 'manufacturer', 'viewer']);
 
-  return <ReportView inspectionId={params.id} />;
+  const id = params?.id || '';
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[ReportPage] Route param id:', id);
+  }
+
+  return <ReportView inspectionId={id} />;
 }

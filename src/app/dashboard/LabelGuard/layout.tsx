@@ -1,7 +1,9 @@
 // Label Ledger — Root Layout
-// Injects dark theme and the AppShell for all LabelGuard pages
+// Injects dark theme, AppShell, and global ToastProvider for all LabelGuard pages
 import type { Metadata } from 'next';
 import { AppShell } from './components/layout/AppShell';
+import { ToastProvider } from './components/ui/Toast';
+import { LanguageProvider } from './i18n/LanguageProvider';
 import './ll-globals.css';
 
 export const metadata: Metadata = {
@@ -21,7 +23,11 @@ export default function LabelGuardLayout({
   return (
     // Scoped dark-theme wrapper — doesn't affect parent Globe Trotter app
     <div className="ll-root" style={{ colorScheme: 'dark' }}>
-      <AppShell>{children}</AppShell>
+      <LanguageProvider>
+        <ToastProvider>
+          <AppShell>{children}</AppShell>
+        </ToastProvider>
+      </LanguageProvider>
     </div>
   );
 }

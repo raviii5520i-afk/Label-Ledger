@@ -77,6 +77,16 @@ export interface OcrWord {
 export interface OcrResult {
   raw_text: string;
   words: OcrWord[];
+  diagnostics?: OcrDiagnostics;
+}
+
+export interface OcrDiagnostics {
+  passCount: number;
+  durationMs: number;
+  wordCount: number;
+  avgConfidence: number;
+  bestVariant: string;
+  preprocessingVariants: string[];
 }
 
 /** Per-field extracted value with confidence and optional bbox */
@@ -84,6 +94,9 @@ export interface ExtractedField {
   value: string;
   confidence: number; // 0–1
   bbox?: BBox;
+  sourceText?: string;
+  confidenceCategory?: 'HIGH' | 'MEDIUM' | 'LOW';
+  validationStatus?: 'VALID' | 'UNCERTAIN' | 'INVALID';
 }
 
 /** Seam A←C: returned from AI extraction service */
@@ -95,10 +108,12 @@ export interface ExtractionResult {
     mfg_date?: ExtractedField;
     expiry_date?: ExtractedField;
     manufacturer_address?: ExtractedField;
+    marketed_by?: ExtractedField;
     consumer_care?: ExtractedField;
     country_of_origin?: ExtractedField;
     batch_number?: ExtractedField;
     fssai_license?: ExtractedField;
+    usp?: ExtractedField;
     bar_code?: ExtractedField;
   };
 }

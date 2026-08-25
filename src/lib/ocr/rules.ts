@@ -61,6 +61,14 @@ export function evaluateRule6Compliance(
 
     // Build rule_checks payload
     const passed = found || !rule.mandatory;
+    let notes = passed
+      ? 'Declaration present and compliant with Rule 6'
+      : `Violation: Mandatory declaration ${rule.label} missing from label image`;
+
+    if (found && confidenceVal < 0.60) {
+      notes = `Needs Manual Review: Low OCR confidence (${Math.round(confidenceVal * 100)}%) for ${rule.label}`;
+    }
+
     checks.push({
       inspection_id: inspectionId,
       rule_id: rule.id,
@@ -68,10 +76,8 @@ export function evaluateRule6Compliance(
       label: rule.label,
       passed,
       extracted_value: extractedVal,
-      expected_value: rule.mandatory ? 'Mandatory declaration must be visible' : 'Optional',
-      notes: passed
-        ? 'Declaration present and compliant with Rule 6'
-        : `Violation: Mandatory declaration ${rule.label} missing from label image`,
+      expected_value: rule.mandatory ? 'Mandatory declaration must be visible' : 'Optional declaration',
+      notes,
     });
   }
 

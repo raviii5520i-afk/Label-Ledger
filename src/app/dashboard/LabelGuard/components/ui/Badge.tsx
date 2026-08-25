@@ -43,10 +43,10 @@ interface BadgeProps {
 
 const badgeColors: Record<BadgeColor, string> = {
   default: 'bg-slate-800 text-slate-300 border-slate-600',
-  indigo: 'bg-indigo-900/40 text-indigo-300 border-indigo-600/40',
-  emerald: 'bg-emerald-900/40 text-emerald-300 border-emerald-600/40',
-  red: 'bg-red-900/40 text-red-300 border-red-600/40',
-  amber: 'bg-amber-900/40 text-amber-300 border-amber-600/40',
+  indigo: 'bg-blue-100 text-blue-800 border-blue-200',
+  emerald: 'bg-[var(--lg-green-light)] text-[var(--lg-green-accent)] border-[var(--lg-green-accent)]/20',
+  red: 'bg-red-100 text-red-700 border-red-200',
+  amber: 'bg-orange-100 text-[var(--lg-orange)] border-orange-200',
   slate: 'bg-slate-800/60 text-slate-400 border-slate-700',
 };
 
@@ -64,14 +64,7 @@ export function Badge({ children, color = 'default', className }: BadgeProps) {
   );
 }
 
-// ── CountBadge (for sidebar notification) ───────────────────
-
-interface CountBadgeProps {
-  count: number;
-  className?: string;
-}
-
-export function CountBadge({ count, className }: CountBadgeProps) {
+export function CountBadge({ count, className }: { count: number; className?: string }) {
   if (count === 0) return null;
   return (
     <span
@@ -82,6 +75,21 @@ export function CountBadge({ count, className }: CountBadgeProps) {
       )}
     >
       {count > 99 ? '99+' : count}
+    </span>
+  );
+}
+
+// Monospace clause codes tag (e.g. Rule 6(1)(a))
+export function ClauseTag({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono font-medium',
+        'bg-indigo-950/40 text-indigo-300 border border-indigo-800/30',
+        className,
+      )}
+    >
+      {children}
     </span>
   );
 }

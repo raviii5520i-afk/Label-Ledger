@@ -1,1 +1,1 @@
-export * from '@/lib/supabase/middleware';
+export * from '../../../../../lib/supabase/middleware';

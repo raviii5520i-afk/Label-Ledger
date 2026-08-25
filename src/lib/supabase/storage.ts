@@ -4,6 +4,16 @@ import { getCurrentUser } from './auth';
 
 export const BUCKET_LABEL_EVIDENCE = 'label-evidence';
 
+// Helper to resolve current authenticated user or fall back to dev admin user
+async function getEffectiveUser(): Promise<{ id: string } | null> {
+  const user = await getCurrentUser();
+  if (user && user.id) return user;
+  if (process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true' || process.env.NODE_ENV === 'development') {
+    return { id: '00000000-0000-0000-0000-000000000001' };
+  }
+  return null;
+}
+
 export interface UploadLabelEvidenceOptions {
   inspectionId: string;
   file: File | Blob | ArrayBuffer | Buffer;
@@ -27,7 +37,7 @@ export async function uploadLabelEvidence({
   contentType = 'image/jpeg',
 }: UploadLabelEvidenceOptions): Promise<StorageOperationResult<string>> {
   try {
-    const user = await getCurrentUser();
+    const user = await getEffectiveUser();
     if (!user) {
       return { data: null, error: 'User is not authenticated.' };
     }
@@ -67,7 +77,7 @@ export async function createLabelEvidenceSignedUrl(
   expiresInSeconds: number = 3600
 ): Promise<StorageOperationResult<string>> {
   try {
-    const user = await getCurrentUser();
+    const user = await getEffectiveUser();
     if (!user) {
       return { data: null, error: 'User is not authenticated.' };
     }
@@ -99,7 +109,7 @@ export async function createLabelEvidenceSignedUrls(
   expiresInSeconds: number = 3600
 ): Promise<StorageOperationResult<Record<string, string>>> {
   try {
-    const user = await getCurrentUser();
+    const user = await getEffectiveUser();
     if (!user) {
       return { data: null, error: 'User is not authenticated.' };
     }
@@ -137,7 +147,7 @@ export async function deleteLabelEvidence(
   path: string
 ): Promise<StorageOperationResult<boolean>> {
   try {
-    const user = await getCurrentUser();
+    const user = await getEffectiveUser();
     if (!user) {
       return { data: false, error: 'User is not authenticated.' };
     }
