@@ -3,24 +3,35 @@
 
 import { createBrowserClient } from '@supabase/ssr';
 
-export const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-export const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+export function getSupabaseUrl(): string {
+  let url = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').trim();
+  if (!url || url === 'undefined' || url === 'null') {
+    return 'https://placeholder.supabase.co';
+  }
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    url = 'https://' + url;
+  }
+  return url;
+}
+
+export function getSupabaseAnonKey(): string {
+  const key = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim();
+  if (!key || key === 'undefined' || key === 'null') {
+    return 'placeholder-key';
+  }
+  return key;
+}
+
+export const SUPABASE_URL = getSupabaseUrl();
+export const SUPABASE_ANON_KEY = getSupabaseAnonKey();
 
 /**
  * Creates a client-side Supabase instance.
  * Safe for use in Client Components ('use client').
  */
 export function createClient() {
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    if (typeof window !== 'undefined') {
-      console.warn(
-        '[LabelLedger] Supabase environment variables missing. Operating in Mock Data mode.',
-      );
-    }
-  }
+  const url = getSupabaseUrl();
+  const key = getSupabaseAnonKey();
 
-  return createBrowserClient(
-    SUPABASE_URL || 'https://placeholder.supabase.co',
-    SUPABASE_ANON_KEY || 'placeholder-key',
-  );
+  return createBrowserClient(url, key);
 }
